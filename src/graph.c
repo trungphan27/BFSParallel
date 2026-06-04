@@ -1,0 +1,219 @@
+#include "graph.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+#include <assert.h>
+
+/* ------------------------------------------------------------------ *
+ * Bộ sinh số ngẫu nhiên nhanh (xorshift64)                            *
+ * ------------------------------------------------------------------ */
+static uint64_t xorshift64(uint64_t *state)
+{
+    uint64_t x = *state;
+    x ^= x << 13;
+    x ^= x >> 7;
+    x ^= x << 17;
+    *state = x;
+    return x;
+}
+
+/* double trong [0, 1) */
+static inline double rand_double(uint64_t *state)
+{
+    return (double)(xorshift64(state) >> 11) / (double)(1ULL << 53);
+}
+
+/* ------------------------------------------------------------------ *
+ * Sinh một cạnh R-MAT                                                  *
+ *                                                                      *
+ * R-MAT chia ma trận kề thành 4 góc (a, b, c, d).                     *
+ * Mỗi vòng lặp thu nhỏ ô được chọn, tích lũy offset (u, v).           *
+ * ------------------------------------------------------------------ */
+static void rmat_edge(vertex_t n, const RMATParams *p,
+                      uint64_t *state,
+                      vertex_t *out_u, vertex_t *out_v)
+{
+    vertex_t u = 0, v = 0;
+    vertex_t step = n;          /* kích thước ô hiện tại                */
+
+    while (step > 1) {
+        step >>= 1;             /* chia đôi                             */
+        double r = rand_double(state);
+        if (r < p->a) {
+            /* góc trên-trái: u, v không đổi */
+        } else if (r < p->a + p->b) {
+            v += step;          /* góc trên-phải                        */
+        } else if (r < p->a + p->b + p->c) {
+            u += step;          /* góc dưới-trái                        */
+        } else {
+            u += step;          /* góc dưới-phải                        */
+            v += step;
+        }
+    }
+    *out_u = u;
+    *out_v = v;
+}
+
+/* ------------------------------------------------------------------ *
+ * Cấu trúc tạm lưu danh sách cạnh trước khi build CSR                 *
+ * ------------------------------------------------------------------ */
+typedef struct {
+    vertex_t u, v;
+} Edge;
+
+static int edge_cmp(const void *a, const void *b)
+{
+    const Edge *ea = (const Edge *)a;
+    const Edge *eb = (const Edge *)b;
+    if (ea->u != eb->u) return (ea->u > eb->u) - (ea->u < eb->u);
+    return (ea->v > eb->v) - (ea->v < eb->v);
+}
+
+/* ------------------------------------------------------------------ *
+ * graph_rmat_generate                                                   *
+ * ------------------------------------------------------------------ */
+Graph *graph_rmat_generate(vertex_t num_vertices,
+                           int      scale_factor,
+                           uint64_t seed,
+                           const RMATParams *params)
+{
+    /* Tham số mặc định Graph500 */
+    RMATParams default_params = {0.57, 0.19, 0.19, 0.05};
+    if (!params) params = &default_params;
+
+    /* num_vertices phải là lũy thừa 2 để R-MAT hoạt động đúng.        *
+     * Làm tròn lên lũy thừa 2 gần nhất.                                */
+    vertex_t n = 1;
+    while (n < num_vertices) n <<= 1;
+
+    edge_t target_edges = (edge_t)n * scale_factor;
+
+    fprintf(stderr, "[GRAPH] Generating R-MAT: n=%d, target_edges=%lld, seed=%llu\n",
+            n, (long long)target_edges, (unsigned long long)seed);
+
+    /* ---------------------------------------------------------------- *
+     * Sinh cạnh                                                         *
+     * Cấp phát tối đa 2 * target_edges (mỗi cạnh thêm 2 chiều)        *
+     * ---------------------------------------------------------------- */
+    edge_t raw_cap = target_edges * 2 + 16;
+    Edge  *edges   = (Edge *)malloc((size_t)raw_cap * sizeof(Edge));
+    if (!edges) {
+        fprintf(stderr, "[GRAPH] malloc failed for edge list\n");
+        return NULL;
+    }
+
+    uint64_t state  = seed ^ 0xdeadbeefcafe1234ULL;
+    edge_t   nedges = 0;
+
+    for (edge_t i = 0; i < target_edges; i++) {
+        vertex_t u, v;
+        rmat_edge(n, params, &state, &u, &v);
+
+        /* Bỏ self-loop */
+        if (u == v) continue;
+
+        /* Vô hướng: thêm cả 2 chiều */
+        edges[nedges].u = u;  edges[nedges].v = v;  nedges++;
+        edges[nedges].u = v;  edges[nedges].v = u;  nedges++;
+
+        if (nedges >= raw_cap - 4) {
+            /* Mở rộng buffer nếu cần */
+            raw_cap *= 2;
+            Edge *tmp = (Edge *)realloc(edges, (size_t)raw_cap * sizeof(Edge));
+            if (!tmp) { free(edges); return NULL; }
+            edges = tmp;
+        }
+    }
+
+    /* ---------------------------------------------------------------- *
+     * Sắp xếp và loại bỏ cạnh trùng                                    *
+     * ---------------------------------------------------------------- */
+    qsort(edges, (size_t)nedges, sizeof(Edge), edge_cmp);
+
+    edge_t unique = 0;
+    for (edge_t i = 0; i < nedges; i++) {
+        if (i == 0 ||
+            edges[i].u != edges[i-1].u ||
+            edges[i].v != edges[i-1].v)
+        {
+            edges[unique++] = edges[i];
+        }
+    }
+    nedges = unique;
+
+    fprintf(stderr, "[GRAPH] After dedup: %lld edges (avg degree %.2f)\n",
+            (long long)nedges, (double)nedges / n);
+
+    /* ---------------------------------------------------------------- *
+     * Build CSR                                                          *
+     * ---------------------------------------------------------------- */
+    Graph *g = (Graph *)malloc(sizeof(Graph));
+    if (!g) { free(edges); return NULL; }
+
+    g->num_vertices = n;
+    g->num_edges    = nedges;
+    g->row_ptr = (edge_t   *)calloc((size_t)(n + 1), sizeof(edge_t));
+    g->adj     = (vertex_t *)malloc((size_t)nedges  * sizeof(vertex_t));
+
+    if (!g->row_ptr || !g->adj) {
+        free(g->row_ptr); free(g->adj); free(g); free(edges);
+        return NULL;
+    }
+
+    /* Đếm bậc */
+    for (edge_t i = 0; i < nedges; i++)
+        g->row_ptr[edges[i].u + 1]++;
+
+    /* Prefix sum → row_ptr */
+    for (vertex_t v = 0; v < n; v++)
+        g->row_ptr[v + 1] += g->row_ptr[v];
+
+    /* Điền adj */
+    edge_t *tmp_pos = (edge_t *)malloc((size_t)n * sizeof(edge_t));
+    if (!tmp_pos) {
+        free(g->row_ptr); free(g->adj); free(g); free(edges);
+        return NULL;
+    }
+    memcpy(tmp_pos, g->row_ptr, (size_t)n * sizeof(edge_t));
+
+    for (edge_t i = 0; i < nedges; i++) {
+        vertex_t u = edges[i].u;
+        g->adj[tmp_pos[u]++] = edges[i].v;
+    }
+
+    free(tmp_pos);
+    free(edges);
+
+    return g;
+}
+
+/* ------------------------------------------------------------------ */
+void graph_free(Graph *g)
+{
+    if (!g) return;
+    free(g->row_ptr);
+    free(g->adj);
+    free(g);
+}
+
+/* ------------------------------------------------------------------ */
+void graph_print_info(const Graph *g)
+{
+    if (!g) return;
+    edge_t max_deg = 0, min_deg = g->row_ptr[1] - g->row_ptr[0];
+    for (vertex_t v = 0; v < g->num_vertices; v++) {
+        edge_t d = graph_degree(g, v);
+        if (d > max_deg) max_deg = d;
+        if (d < min_deg) min_deg = d;
+    }
+    fprintf(stderr,
+            "[GRAPH] Vertices: %d | Edges: %lld | "
+            "Avg degree: %.2f | Min: %lld | Max: %lld\n",
+            g->num_vertices,
+            (long long)g->num_edges,
+            (double)g->num_edges / g->num_vertices,
+            (long long)min_deg,
+            (long long)max_deg);
+}
