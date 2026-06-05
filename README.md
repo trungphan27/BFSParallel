@@ -1,200 +1,417 @@
-# Hướng Dẫn Setup Cluster MPI + OpenMP cho BFS Project
-## VirtualBox + Ubuntu 24.04 + Bridge Adapter
+# BFS Hybrid — MPI + OpenMP + Direction-Optimizing
+
+Project **Parallel & Distributed Programming** implement thuật toán
+**Breadth-First Search song song** trên đồ thị R-MAT quy mô lớn, chạy
+phân tán trên nhiều máy (cluster).
 
 ---
 
 ## Mục lục
 
-1. [Yêu cầu hệ thống](#1-yêu-cầu-hệ-thống)
-2. [Tạo và cấu hình VM](#2-tạo-và-cấu-hình-vm)
-3. [Cài đặt phần mềm trên mỗi VM](#3-cài-đặt-phần-mềm-trên-mỗi-vm)
-4. [Cấu hình mạng Bridge Adapter](#4-cấu-hình-mạng-bridge-adapter)
-5. [Cấu hình SSH không cần mật khẩu](#5-cấu-hình-ssh-không-cần-mật-khẩu)
-6. [Cấu hình MPI hostfile](#6-cấu-hình-mpi-hostfile)
-7. [Kiểm tra cluster hoạt động](#7-kiểm-tra-cluster-hoạt-động)
-8. [Chạy chương trình BFS trên 1 máy](#8-chạy-chương-trình-bfs-trên-1-máy)
-9. [Chạy chương trình BFS trên nhiều máy](#9-chạy-chương-trình-bfs-trên-nhiều-máy)
-10. [Cấu trúc project và Makefile](#10-cấu-trúc-project-và-makefile)
-11. [Troubleshooting](#11-troubleshooting)
+1. [Cấu trúc project](#1-cấu-trúc-project)
+2. [Thuật toán](#2-thuật-toán)
+3. [Cài đặt dependencies](#3-cài-đặt-dependencies)
+4. [Build project](#4-build-project)
+5. [Chạy trên 1 máy (local)](#5-chạy-trên-1-máy-local)
+6. [Thiết lập Cluster — Hướng dẫn chi tiết](#6-thiết-lập-cluster--hướng-dẫn-chi-tiết)
+   - [Yêu cầu phần cứng / mạng](#61-yêu-cầu-phần-cứng--mạng)
+   - [Cài OpenMPI trên tất cả nodes](#62-cài-openmpi-trên-tất-cả-nodes)
+   - [Tạo user chung và cấu hình SSH](#63-tạo-user-chung-và-cấu-hình-ssh-không-password)
+   - [Cấu hình NFS chia sẻ code](#64-cấu-hình-nfs-chia-sẻ-thư-mục-code)
+   - [Cấu hình /etc/hosts](#65-cấu-hình-etchosts)
+   - [Tạo hostfile](#66-tạo-hostfile)
+   - [Test kết nối cluster](#67-test-kết-nối-cluster)
+   - [Chạy chương trình trên cluster](#68-chạy-chương-trình-trên-cluster)
+7. [Tham số và biến môi trường](#7-tham-số-và-biến-môi-trường)
+8. [Kết quả mẫu](#8-kết-quả-mẫu)
+9. [Xử lý lỗi thường gặp](#9-xử-lý-lỗi-thường-gặp)
+10. [Các hàm MPI được dùng](#10-các-hàm-mpi-được-dùng)
 
 ---
 
-## 1. Yêu cầu hệ thống
+## 1. Cấu trúc project
 
-### Máy host
-- VirtualBox 7.x trở lên
-- RAM tối thiểu 8GB (để chạy 2–4 VM cùng lúc)
-- Kết nối mạng LAN (Ethernet hoặc WiFi)
-
-### Mỗi VM
-| Thành phần | Tối thiểu | Khuyến nghị |
-|------------|-----------|-------------|
-| OS         | Ubuntu 24.04 LTS | Ubuntu 24.04 LTS |
-| RAM        | 1GB | 2GB |
-| CPU        | 2 vCPU | 4 vCPU |
-| Disk       | 15GB | 20GB |
-| Network    | Bridge Adapter | Bridge Adapter |
-
-### Quy ước đặt tên trong guide này
-| VM | Hostname | IP (ví dụ) | Vai trò |
-|----|----------|------------|---------|
-| VM1 | `node01` | `192.168.1.101` | Master (rank 0) |
-| VM2 | `node02` | `192.168.1.102` | Worker |
-| VM3 | `node03` | `192.168.1.103` | Worker |
-| VM4 | `node04` | `192.168.1.104` | Worker |
-
-> **Lưu ý:** IP thực tế phụ thuộc vào mạng LAN của bạn. Dùng `ip addr` để kiểm tra sau khi cài xong.
-
----
-
-## 2. Tạo và cấu hình VM
-
-### 2.1. Tạo VM đầu tiên (node01)
-
-1. Mở VirtualBox → **New**
-2. Cấu hình:
-   - Name: `node01`
-   - Type: `Linux`, Version: `Ubuntu (64-bit)`
-   - RAM: `2048 MB`
-   - vCPU: `2–4` (Settings → System → Processor)
-   - Disk: `20 GB` (VDI, dynamically allocated)
-
-3. Cài Ubuntu 24.04 LTS từ ISO:
-   - Trong quá trình cài: chọn **Minimal installation**
-   - Đặt username: `mpiuser` (dùng thống nhất trên tất cả node)
-   - Đặt hostname: `node01`
-
-### 2.2. Nhân bản VM (Clone) cho node02, node03, node04
-
-Sau khi cài xong node01 và cấu hình xong phần mềm (mục 3):
-
-1. Tắt VM node01
-2. Chuột phải vào node01 → **Clone**
-   - Name: `node02`
-   - MAC Address Policy: **Generate new MAC addresses for all network adapters** ✅
-   - Clone type: **Full clone**
-3. Lặp lại cho node03, node04
-
-4. Sau khi clone, bật từng VM và đổi hostname:
-```bash
-# Trên node02
-sudo hostnamectl set-hostname node02
-sudo reboot
-
-# Trên node03
-sudo hostnamectl set-hostname node03
-sudo reboot
+```
+bfs-project/
+├── src/
+│   ├── main_seq.c          ← Entry point BFS tuần tự (baseline)
+│   ├── main_hybrid.c       ← Entry point BFS hybrid (MPI + OpenMP)
+│   ├── bfs_sequential.c/h  ← BFS queue-based tiêu chuẩn
+│   ├── bfs_hybrid.c/h      ← Direction-optimizing + MPI + OpenMP
+│   ├── graph.c/h           ← R-MAT generator, định dạng CSR
+│   └── utils.c/h           ← Timer, MTEPS, verify
+├── scripts/
+│   └── run_benchmark.sh    ← Benchmark tự động, xuất CSV
+├── results/                ← Output CSV (tự tạo khi chạy benchmark)
+├── hostfile                ← Danh sách nodes cluster
+├── Makefile
+└── README.md
 ```
 
 ---
 
-## 3. Cài đặt phần mềm trên mỗi VM
+## 2. Thuật toán
 
-Thực hiện trên **tất cả** các VM (node01 → node04):
+### R-MAT Graph Generator
+
+Sinh đồ thị ngẫu nhiên theo mô hình **R-MAT** (Recursive MATrix),
+chuẩn Graph500. Đồ thị vô hướng, lưu dạng **CSR** (Compressed Sparse Row).
+
+```
+Ma trận kề được chia đệ quy thành 4 góc với xác suất a, b, c, d:
+  ┌──────┬──────┐
+  │  a   │  b   │    a=0.57, b=0.19
+  │      │      │    c=0.19, d=0.05
+  ├──────┼──────┤    (a+b+c+d = 1)
+  │  c   │  d   │
+  └──────┴──────┘
+Mỗi cạnh được đặt vào một góc ngẫu nhiên, lặp lại log2(n) lần.
+→ Tạo ra đồ thị có phân phối bậc power-law (thực tế hơn random uniform)
+```
+
+### Direction-Optimizing BFS (Beamer et al. 2012)
+
+BFS thông thường luôn duyệt **top-down** (từ frontier ra hàng xóm).
+Khi frontier rất lớn, cách này lãng phí vì kiểm tra nhiều cạnh đã thăm.
+
+Thuật toán tự động chuyển hướng theo từng level:
+
+```
+TOP-DOWN  : frontier → xét hàng xóm của mỗi đỉnh trong frontier
+BOTTOM-UP : mỗi đỉnh CHƯA THĂM → tìm 1 hàng xóm trong frontier
+            (dừng ngay khi tìm thấy → tiết kiệm hơn khi frontier rộng)
+
+Chuyển sang BOTTOM-UP khi: frontier_edges > unvisited_edges / ALPHA (=14)
+Quay lại TOP-DOWN khi:     frontier_size  < num_vertices    / BETA  (=24)
+```
+
+### Kiến trúc song song
+
+```
+┌─────────────────────────────────────────────────────┐
+│                  MPI RANK 0 (Master)                 │
+│  ┌──────────┐  ┌──────────┐                          │
+│  │ Thread 0 │  │ Thread 1 │  ← OpenMP threads        │
+│  └──────────┘  └──────────┘                          │
+├─────────────────────────────────────────────────────┤
+│                  MPI RANK 1                          │
+│  ┌──────────┐  ┌──────────┐                          │
+│  │ Thread 0 │  │ Thread 1 │                          │
+│  └──────────┘  └──────────┘                          │
+├─────────────────────────────────────────────────────┤
+│                  MPI RANK 2, 3, ...                  │
+└─────────────────────────────────────────────────────┘
+
+Phân vùng đỉnh (Vertex Partition):
+  Rank r chịu trách nhiệm đỉnh [n*r/P, n*(r+1)/P)
+
+Đồng bộ cuối mỗi level:
+  MPI_Allreduce (MAX) → merge dist[]
+  MPI_Allreduce (OR)  → merge frontier bitmap
+```
+
+---
+
+## 3. Cài đặt dependencies
+
+Thực hiện trên **tất cả** các máy tham gia cluster:
 
 ```bash
-# Cập nhật hệ thống
-sudo apt update && sudo apt upgrade -y
-
-# Cài OpenMPI và development tools
-sudo apt install -y \
+sudo apt update && sudo apt install -y \
     openmpi-bin \
     openmpi-common \
     libopenmpi-dev \
     openssh-server \
-    openssh-client \
     gcc \
-    make \
-    git \
-    htop \
-    net-tools
+    make
+```
 
-# Kiểm tra phiên bản MPI
+Kiểm tra version — phải **giống nhau** trên tất cả nodes:
+
+```bash
 mpirun --version
+# Ví dụ: mpirun (Open MPI) 4.1.6
+
 mpicc --version
+# Ví dụ: gcc (Ubuntu 13.2.0) 13.2.0
 
-# Kiểm tra OpenMP (đã có sẵn với GCC)
-gcc --version
+# Kiểm tra OpenMP (có sẵn trong GCC >= 4.9)
 echo "#include <omp.h>
-int main() { return 0; }" | gcc -fopenmp -x c - -o /tmp/test_omp && echo "OpenMP OK"
+int main(){return 0;}" | gcc -fopenmp -x c - -o /tmp/t && echo "OpenMP OK"
 ```
 
-### Cài đặt NFS để chia sẻ thư mục project (tùy chọn nhưng tiện)
-
-**Trên node01 (NFS server):**
-```bash
-sudo apt install -y nfs-kernel-server
-
-# Tạo thư mục chia sẻ
-mkdir -p /home/mpiuser/bfs-project
-sudo chown mpiuser:mpiuser /home/mpiuser/bfs-project
-
-# Cấu hình export
-echo "/home/mpiuser/bfs-project *(rw,sync,no_subtree_check,no_root_squash)" | sudo tee -a /etc/exports
-sudo exportfs -a
-sudo systemctl restart nfs-kernel-server
-```
-
-**Trên node02, node03, node04 (NFS client):**
-```bash
-sudo apt install -y nfs-common
-
-# Mount thư mục từ node01
-mkdir -p /home/mpiuser/bfs-project
-sudo mount 192.168.1.101:/home/mpiuser/bfs-project /home/mpiuser/bfs-project
-
-# Mount tự động khi khởi động (thêm vào /etc/fstab)
-echo "192.168.1.101:/home/mpiuser/bfs-project /home/mpiuser/bfs-project nfs defaults 0 0" | sudo tee -a /etc/fstab
-```
-
-> Nếu không dùng NFS, bạn cần copy source code lên từng node thủ công hoặc dùng `scp`.
+> ⚠️ **Quan trọng:** Version OpenMPI phải **giống hệt nhau** trên tất cả nodes.
+> Nếu khác version, chương trình có thể crash hoặc treo.
 
 ---
 
-## 4. Cấu hình mạng Bridge Adapter
-
-### 4.1. Cài đặt trong VirtualBox
-
-1. Chọn VM → **Settings** → **Network**
-2. Adapter 1:
-   - **Enable Network Adapter**: ✅
-   - Attached to: **Bridged Adapter**
-   - Name: chọn card mạng vật lý đang dùng (VD: `Intel(R) Ethernet...` hoặc `Wi-Fi`)
-3. Nhấn OK → Khởi động VM
-
-### 4.2. Kiểm tra IP sau khi boot
+## 4. Build project
 
 ```bash
-ip addr show
-# Tìm dòng có inet, ví dụ: inet 192.168.1.101/24
+make          # Build cả bfs_seq và bfs_hybrid
+make clean    # Xóa binary và results/*.csv
 ```
 
-### 4.3. Đặt IP tĩnh (khuyến nghị để tránh IP thay đổi)
-
-Chỉnh file `/etc/netplan/00-installer-config.yaml`:
-
-```yaml
-network:
-  version: 2
-  ethernets:
-    enp0s3:           # Tên card mạng, có thể khác (dùng `ip addr` để xem)
-      dhcp4: no
-      addresses:
-        - 192.168.1.101/24   # Đổi thành IP tương ứng mỗi node
-      routes:
-        - to: default
-          via: 192.168.1.1   # Gateway của router
-      nameservers:
-        addresses: [8.8.8.8, 8.8.4.4]
-```
+Makefile cũng có các target tiện dụng để test nhanh:
 
 ```bash
-sudo netplan apply
+make test_seq    # Chạy sequential 500k đỉnh
+make test_local  # Chạy hybrid 1 rank + 4 thread + verify
+make verify      # Verify correctness với graph nhỏ (100k đỉnh)
 ```
 
-> Đặt IP tương ứng: node01=`.101`, node02=`.102`, node03=`.103`, node04=`.104`
+---
 
-### 4.4. Thêm vào /etc/hosts trên tất cả các node
+## 5. Chạy trên 1 máy (local)
+
+### BFS tuần tự (baseline)
+
+```bash
+./bfs_seq <num_vertices> <scale_factor> <seed>
+
+# Ví dụ: 1 triệu đỉnh, bậc trung bình 16, seed 42
+./bfs_seq 1000000 16 42
+```
+
+### BFS hybrid — 1 máy
+
+```bash
+OMP_NUM_THREADS=<threads> mpirun -np <ranks> \
+    ./bfs_hybrid <num_vertices> <scale_factor> <seed> [--verify]
+
+# Ví dụ: 4 rank × 2 thread = 8 cores tổng
+OMP_NUM_THREADS=2 mpirun -np 4 ./bfs_hybrid 1000000 16 42
+
+# Thêm --verify để so sánh kết quả với sequential
+OMP_NUM_THREADS=2 mpirun -np 4 ./bfs_hybrid 1000000 16 42 --verify
+```
+
+> `ranks × threads ≤ số core vật lý` để tránh oversubscribe.
+> Nếu máy ít core, thêm `--oversubscribe` để ép chạy (kết quả đúng, hiệu năng thấp hơn).
+
+### Benchmark tự động
+
+```bash
+chmod +x scripts/run_benchmark.sh
+./scripts/run_benchmark.sh
+# Kết quả lưu tại: results/benchmark_<timestamp>.csv
+```
+
+---
+
+## 6. Thiết lập Cluster — Hướng dẫn chi tiết
+
+Phần này hướng dẫn cấu hình **mỗi VM chạy trên 1 máy vật lý riêng**,
+kết nối qua mạng LAN, để chạy BFS phân tán thật sự.
+
+### Topology trong hướng dẫn này
+
+```
+┌────────────────────────────────────────────────────────────┐
+│                     LAN / Switch / Router                  │
+│                                                            │
+│  ┌─────────────────┐   ┌──────────────┐  ┌──────────────┐ │
+│  │  Máy vật lý 1   │   │ Máy vật lý 2 │  │ Máy vật lý 3 │ │
+│  │  ┌───────────┐  │   │ ┌──────────┐ │  │ ┌──────────┐ │ │
+│  │  │   VM      │  │   │ │   VM     │ │  │ │   VM     │ │ │
+│  │  │  node01   │  │   │ │  node02  │ │  │ │  node03  │ │ │
+│  │  │.1.101     │  │   │ │ .1.102   │ │  │ │ .1.103   │ │ │
+│  │  │ (master)  │  │   │ │ (worker) │ │  │ │ (worker) │ │ │
+│  │  └───────────┘  │   │ └──────────┘ │  │ └──────────┘ │ │
+│  └─────────────────┘   └──────────────┘  └──────────────┘ │
+└────────────────────────────────────────────────────────────┘
+```
+
+> Thay IP và hostname theo thực tế của bạn.
+> Mỗi VM phải dùng **Bridged Adapter** trong VirtualBox để lấy IP thật trên LAN.
+
+---
+
+### 6.1. Yêu cầu phần cứng / mạng
+
+- Tất cả VM phải **cùng subnet** (ping được nhau)
+- OS: **Ubuntu 22.04+ / 24.04** (khuyến nghị)
+- Mỗi VM: tối thiểu 2 vCPU, 1GB RAM, 15GB disk
+- Network Adapter trong VirtualBox: **Bridged Adapter** (không phải NAT)
+- Cổng cần mở nếu có firewall: **SSH (22)**, **NFS (2049)**
+
+Kiểm tra ping trước khi làm bất cứ thứ gì:
+
+```bash
+# Trên node01, ping sang các node khác
+ping -c 3 192.168.1.102
+ping -c 3 192.168.1.103
+
+# Nếu không ping được → kiểm tra lại Bridged Adapter trong VirtualBox
+```
+
+---
+
+### 6.2. Cài OpenMPI trên tất cả nodes
+
+Chạy lệnh sau trên **TỪNG VM** (node01, node02, node03, ...):
+
+```bash
+sudo apt update && sudo apt install -y \
+    openmpi-bin \
+    openmpi-common \
+    libopenmpi-dev \
+    nfs-common \
+    openssh-server \
+    gcc \
+    make
+
+# Kiểm tra version — phải giống nhau trên tất cả
+mpirun --version
+# Ví dụ: mpirun (Open MPI) 4.1.6
+```
+
+---
+
+### 6.3. Tạo user chung và cấu hình SSH không password
+
+MPI dùng SSH để spawn process trên các node worker.
+Phải cấu hình để **node01 SSH sang các node khác mà không cần nhập password**.
+
+#### Bước 1 — Tạo user `mpiuser` trên TẤT CẢ các VM
+
+```bash
+# Chạy trên TỪNG VM
+sudo adduser mpiuser
+# Nhập password, Enter bỏ qua các trường còn lại
+
+# Tuỳ chọn: thêm sudo để tiện cài gói
+sudo usermod -aG sudo mpiuser
+```
+
+> Tên user phải **giống nhau** trên tất cả VM.
+
+#### Bước 2 — Tạo SSH key trên node01 (master)
+
+```bash
+# Chuyển sang user mpiuser trên node01
+su - mpiuser
+
+# Tạo SSH key — nhấn Enter 3 lần, không đặt passphrase
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa
+
+# Kiểm tra
+ls ~/.ssh/
+# Phải thấy: id_rsa  id_rsa.pub
+```
+
+#### Bước 3 — Copy public key sang tất cả nodes (kể cả chính node01)
+
+```bash
+# Vẫn trong session mpiuser trên node01
+ssh-copy-id mpiuser@node01   # Localhost cũng cần — MPI đôi khi SSH vào chính nó
+ssh-copy-id mpiuser@node02
+ssh-copy-id mpiuser@node03
+# Lệnh này hỏi password mpiuser trên node đích — đây là lần cuối cùng cần nhập
+```
+
+#### Bước 4 — Kiểm tra SSH không password
+
+```bash
+# Từ node01, SSH sang từng node — KHÔNG được hỏi password
+ssh mpiuser@node02 "hostname && echo SSH OK"
+ssh mpiuser@node03 "hostname && echo SSH OK"
+
+# Kết quả mong đợi:
+# node02
+# SSH OK
+```
+
+Nếu vẫn hỏi password, kiểm tra trên node worker:
+
+```bash
+# Trên node02, node03, ...
+ls -la ~/.ssh/authorized_keys
+# Phải tồn tại và chứa public key của node01
+
+chmod 700 ~/.ssh
+chmod 600 ~/.ssh/authorized_keys
+```
+
+#### Bước 5 (tuỳ chọn) — Bỏ qua host key check
+
+Thêm vào `~/.ssh/config` trên node01 để tránh hỏi "Are you sure?" lần đầu:
+
+```bash
+cat >> ~/.ssh/config << 'EOF'
+Host node01 node02 node03 node04
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+EOF
+```
+
+---
+
+### 6.4. Cấu hình NFS chia sẻ thư mục code
+
+NFS cho phép tất cả worker đọc binary từ node01, không cần copy thủ công.
+Build 1 lần trên node01 → tất cả nodes dùng được ngay.
+
+#### Trên node01 — Cài và cấu hình NFS server
+
+```bash
+sudo apt install -y nfs-kernel-server
+
+# Tạo thư mục project
+mkdir -p /home/mpiuser/bfs-project
+sudo chown -R mpiuser:mpiuser /home/mpiuser
+
+# Thêm vào /etc/exports
+echo "/home/mpiuser  192.168.1.0/24(rw,sync,no_subtree_check,no_root_squash)" \
+    | sudo tee -a /etc/exports
+
+# Apply và khởi động
+sudo exportfs -a
+sudo exportfs -v    # Kiểm tra đang export gì
+sudo systemctl enable nfs-kernel-server
+sudo systemctl start nfs-kernel-server
+sudo systemctl status nfs-kernel-server  # Phải thấy "active (running)"
+```
+
+Giải thích các option trong `/etc/exports`:
+- `rw` — cho phép đọc và ghi
+- `sync` — ghi đồng bộ, an toàn hơn
+- `no_subtree_check` — tắt subtree check, tăng performance
+- `no_root_squash` — root trên client giữ quyền root
+
+#### Trên node02, node03, ... — Mount NFS
+
+```bash
+# Tạo mount point cùng đường dẫn với node01
+sudo mkdir -p /home/mpiuser
+
+# Mount thử
+sudo mount 192.168.1.101:/home/mpiuser /home/mpiuser
+
+# Kiểm tra
+df -h | grep mpiuser
+ls /home/mpiuser/bfs-project/   # Phải thấy file từ node01
+```
+
+#### Cấu hình mount tự động khi khởi động
+
+```bash
+# Thêm vào /etc/fstab trên từng worker
+echo "192.168.1.101:/home/mpiuser  /home/mpiuser  nfs  defaults,_netdev  0  0" \
+    | sudo tee -a /etc/fstab
+
+# Test fstab
+sudo umount /home/mpiuser
+sudo mount -a               # Mount lại theo fstab
+df -h | grep mpiuser        # Phải mount được
+```
+
+---
+
+### 6.5. Cấu hình /etc/hosts
+
+Thêm hostname của tất cả nodes vào `/etc/hosts` trên **TỪNG VM**
+để dùng hostname thay IP:
 
 ```bash
 sudo tee -a /etc/hosts << 'EOF'
@@ -205,74 +422,33 @@ sudo tee -a /etc/hosts << 'EOF'
 EOF
 ```
 
-Kiểm tra ping giữa các node:
+Kiểm tra:
+
 ```bash
-ping -c 3 node02
-ping -c 3 node03
+ping -c 3 node02    # Từ node01
+ping -c 3 node01    # Từ node02
 ```
 
 ---
 
-## 5. Cấu hình SSH không cần mật khẩu
+### 6.6. Tạo hostfile
 
-MPI cần SSH để spawn process trên các node. Phải cấu hình **passwordless SSH** từ node01 đến tất cả node còn lại.
-
-### 5.1. Tạo SSH key trên node01
+Trên **node01**, tạo file `~/bfs-project/hostfile`:
 
 ```bash
-# Trên node01, đăng nhập với user mpiuser
-ssh-keygen -t rsa -b 4096 -N "" -f ~/.ssh/id_rsa
+su - mpiuser
+nano ~/bfs-project/hostfile
 ```
 
-### 5.2. Copy public key đến tất cả các node
+Nội dung cho 2 node:
 
-```bash
-# Từ node01, copy key đến từng node (nhập mật khẩu lần đầu)
-ssh-copy-id mpiuser@node01   # Cả node01 cũng cần (localhost)
-ssh-copy-id mpiuser@node02
-ssh-copy-id mpiuser@node03
-ssh-copy-id mpiuser@node04
-```
-
-### 5.3. Kiểm tra SSH không cần mật khẩu
-
-```bash
-# Từ node01, SSH vào từng node - không được hỏi mật khẩu
-ssh mpiuser@node02 hostname
-ssh mpiuser@node03 hostname
-ssh mpiuser@node04 hostname
-```
-
-Output mong đợi:
-```
-node02
-node03
-node04
-```
-
-### 5.4. Cấu hình SSH client (tùy chọn, bỏ qua host key check)
-
-Thêm vào `~/.ssh/config` trên node01:
-
-```
-Host node01 node02 node03 node04
-    StrictHostKeyChecking no
-    UserKnownHostsFile /dev/null
-```
-
----
-
-## 6. Cấu hình MPI hostfile
-
-Tạo file `~/bfs-project/hostfile` trên node01:
-
-### Chạy trên 2 node (node01 + node02)
 ```
 node01 slots=4
 node02 slots=4
 ```
 
-### Chạy trên 4 node
+Nội dung cho 4 node:
+
 ```
 node01 slots=4
 node02 slots=4
@@ -280,324 +456,320 @@ node03 slots=4
 node04 slots=4
 ```
 
-> `slots` = số MPI process tối đa trên mỗi node. Đặt bằng số vCPU của VM.
+Giải thích:
+- `slots=N` — số MPI process tối đa được spawn trên node đó
+- Thường đặt bằng số vCPU của VM: `nproc` để kiểm tra
+
+Ví dụ nếu các máy có số core khác nhau:
+
+```
+node01 slots=8    # máy 8-core
+node02 slots=4    # máy 4-core
+node03 slots=4    # máy 4-core
+# Tổng: -np tối đa 16
+```
 
 ---
 
-## 7. Kiểm tra cluster hoạt động
+### 6.7. Test kết nối cluster
 
-### 7.1. Test MPI hello world
+Trước khi chạy BFS, kiểm tra MPI có spawn đúng trên các node không:
 
-Tạo file `hello_mpi.c`:
+```bash
+# Test: mỗi process in hostname của nó
+mpirun -np 6 --hostfile hostfile hostname
 
-```c
+# Kết quả mong đợi (thứ tự có thể khác):
+# node01
+# node01
+# node02
+# node02
+# node03
+# node03
+```
+
+```bash
+# Test hello world MPI + OpenMP
+cat > /tmp/hello_mpi.c << 'EOF'
 #include <stdio.h>
 #include <mpi.h>
 #include <omp.h>
-
 int main(int argc, char *argv[]) {
     MPI_Init(&argc, &argv);
-
-    int rank, size;
+    int rank, size; char host[256];
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-    char hostname[256];
-    gethostname(hostname, sizeof(hostname));
-
+    gethostname(host, sizeof(host));
     #pragma omp parallel
     {
-        int tid = omp_get_thread_num();
-        int nthreads = omp_get_num_threads();
         #pragma omp critical
-        printf("MPI rank %d/%d | Host: %s | Thread %d/%d\n",
-               rank, size, hostname, tid, nthreads);
+        printf("Rank %d/%d | Host: %s | Thread %d/%d\n",
+               rank, size, host,
+               omp_get_thread_num(), omp_get_num_threads());
     }
-
     MPI_Finalize();
     return 0;
 }
+EOF
+mpicc -fopenmp /tmp/hello_mpi.c -o /tmp/hello_mpi
+
+OMP_NUM_THREADS=2 mpirun -np 6 --hostfile hostfile /tmp/hello_mpi
+
+# Kết quả mong đợi:
+# Rank 0/6 | Host: node01 | Thread 0/2
+# Rank 0/6 | Host: node01 | Thread 1/2
+# Rank 2/6 | Host: node02 | Thread 0/2
+# ...
 ```
 
-```bash
-mpicc -fopenmp hello_mpi.c -o hello_mpi
-```
-
-### 7.2. Chạy trên 1 node (local)
-
-```bash
-# 4 MPI process, mỗi process 2 OpenMP thread
-OMP_NUM_THREADS=2 mpirun -np 4 ./hello_mpi
-```
-
-Output mong đợi:
-```
-MPI rank 0/4 | Host: node01 | Thread 0/2
-MPI rank 0/4 | Host: node01 | Thread 1/2
-MPI rank 1/4 | Host: node01 | Thread 0/2
-...
-```
-
-### 7.3. Chạy trên nhiều node
-
-```bash
-# 8 MPI process trên 2 node (4 process/node), mỗi process 2 thread
-OMP_NUM_THREADS=2 mpirun -np 8 --hostfile hostfile ./hello_mpi
-```
-
-Output mong đợi:
-```
-MPI rank 0/8 | Host: node01 | Thread 0/2
-MPI rank 4/8 | Host: node02 | Thread 0/2
-...
-```
+Nếu thấy tất cả nodes xuất hiện → cluster sẵn sàng.
 
 ---
 
-## 8. Chạy chương trình BFS trên 1 máy
+### 6.8. Chạy chương trình trên cluster
 
-### 8.1. Compile
+#### Quy trình đầy đủ từ đầu
 
 ```bash
+# 1. Trên node01 — vào thư mục project
+su - mpiuser
 cd ~/bfs-project
+
+# 2. Build (chỉ cần làm trên node01, NFS tự sync sang worker)
 make
-```
 
-Makefile sẽ biên dịch ra 2 binary:
-- `bfs_seq` – BFS tuần tự (baseline)
-- `bfs_hybrid` – Full hybrid (MPI + OpenMP + direction-optimizing)
+# 3. Chạy sequential lấy baseline
+./bfs_seq 4000000 16 42
 
-### 8.2. Chạy BFS sequential (baseline)
-
-```bash
-# Cú pháp: ./bfs_seq <số_đỉnh> <scale_factor> <seed>
-./bfs_seq 1000000 16 42
-```
-
-Output:
-```
-[SEQ] Graph: 1000000 vertices, ~16000000 edges
-[SEQ] BFS from source 0
-[SEQ] Time: 1234.56 ms
-[SEQ] MTEPS: 12.96
-```
-
-### 8.3. Chạy BFS hybrid trên 1 node (shared memory only)
-
-```bash
-# 1 MPI process, 4 OpenMP thread
-OMP_NUM_THREADS=4 mpirun -np 1 ./bfs_hybrid 1000000 16 42
-```
-
-Output:
-```
-[HYBRID] Graph: 1000000 vertices, ~16000000 edges
-[HYBRID] Nodes: 1, Threads/node: 4
-[HYBRID] BFS from source 0
-[HYBRID] Levels: 23
-[HYBRID]   Level  0: top-down  (frontier=1)
-[HYBRID]   Level  1: top-down  (frontier=12)
-[HYBRID]   Level  5: SWITCH -> bottom-up (frontier=189432)
-[HYBRID]   Level 18: SWITCH -> top-down  (frontier=521)
-[HYBRID] Time: 234.12 ms
-[HYBRID] Speedup vs sequential: 5.27x
-[HYBRID] MTEPS: 68.34
-```
-
----
-
-## 9. Chạy chương trình BFS trên nhiều máy
-
-### 9.1. Đảm bảo source code có mặt trên tất cả node
-
-**Cách 1 (khuyến nghị): Dùng NFS** – chỉ cần compile trên node01, tất cả node đều thấy binary qua NFS mount.
-
-**Cách 2: Copy thủ công:**
-```bash
-# Từ node01, copy binary đến các node
-scp bfs_hybrid mpiuser@node02:~/bfs-project/
-scp bfs_hybrid mpiuser@node03:~/bfs-project/
-scp bfs_hybrid mpiuser@node04:~/bfs-project/
-```
-
-### 9.2. Chạy trên 2 node
-
-```bash
-# 8 MPI process (4/node), mỗi process 2 OpenMP thread
-OMP_NUM_THREADS=2 mpirun -np 8 \
-    --hostfile hostfile \
+# 4. Chạy BFS hybrid trên cluster
+# 2 node, 8 rank (4/node), mỗi rank 2 thread → 16 core tổng
+OMP_NUM_THREADS=2 mpirun -np 8 --hostfile hostfile \
     ./bfs_hybrid 4000000 16 42
-```
 
-### 9.3. Chạy trên 4 node
+# 5. Kèm --verify để kiểm tra kết quả đúng/sai
+OMP_NUM_THREADS=2 mpirun -np 8 --hostfile hostfile \
+    ./bfs_hybrid 1000000 16 42 --verify
 
-```bash
-# 16 MPI process (4/node), mỗi process 2 OpenMP thread
-OMP_NUM_THREADS=2 mpirun -np 16 \
-    --hostfile hostfile \
+# 6. Scale lên 4 node, graph lớn hơn
+OMP_NUM_THREADS=2 mpirun -np 16 --hostfile hostfile \
     ./bfs_hybrid 16000000 16 42
 ```
 
-### 9.4. Script benchmark tự động
-
-Tạo file `scripts/run_benchmark.sh`:
+#### Các tuỳ chọn hữu ích của mpirun
 
 ```bash
-#!/bin/bash
-# run_benchmark.sh - Chạy benchmark và xuất kết quả
+# 1 process mỗi node (test topology)
+mpirun -np 3 --hostfile hostfile \
+    --map-by node ./bfs_hybrid 1000000 16 42
 
-BINARY=./bfs_hybrid
-SEQ_BINARY=./bfs_seq
-HOSTFILE=./hostfile
-SCALE=16
-SEED=42
-OUTPUT=results/benchmark_$(date +%Y%m%d_%H%M%S).csv
+# Bind process theo core (tăng performance)
+mpirun -np 8 --hostfile hostfile \
+    --bind-to core ./bfs_hybrid 4000000 16 42
 
-mkdir -p results
-echo "mode,nodes,mpi_procs,omp_threads,vertices,time_ms,mteps,speedup" > $OUTPUT
+# Xem chi tiết process được spawn ở đâu
+mpirun -np 8 --hostfile hostfile \
+    --display-map ./bfs_hybrid 1000000 16 42
 
-echo "=== Chạy Sequential baseline ==="
-for V in 500000 1000000 2000000; do
-    TIME=$($SEQ_BINARY $V $SCALE $SEED | grep "Time:" | awk '{print $2}')
-    MTEPS=$($SEQ_BINARY $V $SCALE $SEED | grep "MTEPS:" | awk '{print $2}')
-    echo "sequential,1,1,1,$V,$TIME,$MTEPS,1.0" >> $OUTPUT
-    echo "  V=$V | Time=${TIME}ms | MTEPS=$MTEPS"
-done
+# Verbose output của MPI runtime
+mpirun -np 8 --hostfile hostfile \
+    -v ./bfs_hybrid 1000000 16 42
 
-echo ""
-echo "=== Chạy Hybrid (1 node) ==="
-for V in 500000 1000000 2000000; do
-    for T in 1 2 4; do
-        TIME=$(OMP_NUM_THREADS=$T mpirun -np 1 $BINARY $V $SCALE $SEED | grep "Time:" | awk '{print $2}')
-        MTEPS=$(OMP_NUM_THREADS=$T mpirun -np 1 $BINARY $V $SCALE $SEED | grep "MTEPS:" | awk '{print $2}')
-        echo "hybrid,1,1,$T,$V,$TIME,$MTEPS,-" >> $OUTPUT
-        echo "  V=$V | Threads=$T | Time=${TIME}ms | MTEPS=$MTEPS"
-    done
-done
-
-echo ""
-echo "=== Chạy Hybrid (multi-node) ==="
-for NODES in 2 4; do
-    NP=$((NODES * 4))
-    for V in 1000000 4000000; do
-        TIME=$(OMP_NUM_THREADS=2 mpirun -np $NP --hostfile $HOSTFILE $BINARY $V $SCALE $SEED | grep "Time:" | awk '{print $2}')
-        MTEPS=$(OMP_NUM_THREADS=2 mpirun -np $NP --hostfile $HOSTFILE $BINARY $V $SCALE $SEED | grep "MTEPS:" | awk '{print $2}')
-        echo "hybrid,$NODES,$NP,2,$V,$TIME,$MTEPS,-" >> $OUTPUT
-        echo "  Nodes=$NODES | V=$V | Time=${TIME}ms | MTEPS=$MTEPS"
-    done
-done
-
-echo ""
-echo "=== Kết quả lưu tại: $OUTPUT ==="
-cat $OUTPUT
+# Ép chạy dù không đủ slot (khi test oversubscribe)
+mpirun -np 8 --hostfile hostfile \
+    --oversubscribe ./bfs_hybrid 1000000 16 42
 ```
+
+#### Benchmark tự động
 
 ```bash
 chmod +x scripts/run_benchmark.sh
 ./scripts/run_benchmark.sh
+# Kết quả lưu tại: results/benchmark_<timestamp>.csv
 ```
 
 ---
 
-## 10. Cấu trúc project và Makefile
+## 7. Tham số và biến môi trường
 
-```
-bfs-project/
-├── src/
-│   ├── main_seq.c          # Entry point BFS sequential
-│   ├── main_hybrid.c       # Entry point BFS hybrid
-│   ├── bfs_sequential.c    # Thuật toán BFS tuần tự
-│   ├── bfs_sequential.h
-│   ├── bfs_hybrid.c        # Direction-optimizing + MPI + OpenMP
-│   ├── bfs_hybrid.h
-│   ├── graph.c             # R-MAT generator, CSR format
-│   ├── graph.h
-│   ├── utils.c             # Timer, metrics (MTEPS)
-│   └── utils.h
-├── scripts/
-│   └── run_benchmark.sh
-├── results/                # CSV output
-├── hostfile                # MPI hostfile
-└── Makefile
-```
+### Tham số chương trình
 
-### Makefile
+| Tham số | Ý nghĩa | Ví dụ |
+|---------|---------|-------|
+| `num_vertices` | Số đỉnh đồ thị (làm tròn lên lũy thừa 2) | `1000000` → thực tế `1048576` |
+| `scale_factor` | Bậc trung bình mỗi đỉnh (~mật độ cạnh) | `16` |
+| `seed` | Random seed để tái hiện kết quả | `42` |
+| `--verify` | So sánh kết quả với BFS tuần tự | (flag) |
 
-```makefile
-CC      = mpicc
-CFLAGS  = -O2 -fopenmp -Wall
-LDFLAGS = -lm
+### Biến môi trường
 
-SEQ_SRC  = src/main_seq.c src/bfs_sequential.c src/graph.c src/utils.c
-HYB_SRC  = src/main_hybrid.c src/bfs_hybrid.c src/graph.c src/utils.c
+| Biến | Ý nghĩa | Gợi ý |
+|------|---------|-------|
+| `OMP_NUM_THREADS` | Số OpenMP thread mỗi MPI rank | `= số vCPU / số rank trên node` |
 
-all: bfs_seq bfs_hybrid
+### Hằng số thuật toán (trong `bfs_hybrid.h`)
 
-bfs_seq: $(SEQ_SRC)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
-
-bfs_hybrid: $(HYB_SRC)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
-
-clean:
-	rm -f bfs_seq bfs_hybrid results/*.csv
-
-.PHONY: all clean
-```
+| Hằng | Giá trị | Ý nghĩa |
+|------|---------|---------|
+| `BFS_ALPHA` | `14` | Ngưỡng chuyển sang bottom-up |
+| `BFS_BETA`  | `24` | Ngưỡng quay lại top-down |
 
 ---
 
-## 11. Troubleshooting
+## 8. Kết quả mẫu
 
-### Lỗi: "ssh: connect to host node02 port 22: Connection refused"
+### BFS tuần tự
+
+```
+[SEQ] Generating R-MAT graph: 500000 vertices, scale=16, seed=42
+[SEQ] Graph generated in 4868.78 ms
+
+[SEQ] BFS from source vertex 42
+[SEQ] Graph: 524288 vertices, 15480484 edges
+[SEQ] Visited: 335349 vertices, 15480274 edges
+[SEQ] Time: 42.34 ms
+[SEQ] MTEPS: 365.65
+```
+
+### BFS hybrid (4 rank × 2 thread = 8 cores)
+
+```
+[HYBRID] ============================================
+[HYBRID] BFS Hybrid (MPI + OpenMP + Direction-Opt)
+[HYBRID] MPI ranks   : 4
+[HYBRID] OMP threads : 2 per rank
+[HYBRID] Total cores : 8
+[HYBRID] Alpha       : 14
+[HYBRID] Beta        : 24
+[HYBRID] ============================================
+
+[HYBRID] Generating R-MAT graph: 500000 vertices, scale=16, seed=42
+[HYBRID] BFS from source vertex 42
+
+[HYBRID]   Level  1: top-down  (frontier=1,      fe=9888,     ue=15480484)
+[HYBRID]   Level  2: bottom-up (frontier=2472,   fe=10882620, ue=15470596)
+[HYBRID]   Level  3: bottom-up (frontier=224067, fe=50015036, ue=2966837)
+[HYBRID]   Level  4: bottom-up (frontier=108000, fe=1010272,  ue=2714269)
+[HYBRID]   Level  5: top-down  (frontier=808,    fe=3276,     ue=2713450)
+[HYBRID]   Level  6: top-down  (frontier=1,      fe=4,        ue=2710174)
+
+[HYBRID] ============================================
+[HYBRID] Graph    : 524288 vertices, 15480484 edges
+[HYBRID] Visited  : 335349 vertices, 12770314 edges
+[HYBRID] Levels   : 6
+[HYBRID] Time     : 40.62 ms
+[HYBRID] MTEPS    : 314.35
+
+[HYBRID] Sequential : 69.14 ms | MTEPS: 223.90
+[HYBRID] Speedup    : 1.70x
+[HYBRID] Verify     : PASSED ✓
+[HYBRID] ============================================
+```
+
+### Giải thích output
+
+| Trường | Ý nghĩa |
+|--------|---------|
+| `top-down` / `bottom-up` | Hướng duyệt BFS của level đó |
+| `frontier` | Số đỉnh đang trong frontier |
+| `fe` | Frontier edges — tổng số cạnh của các đỉnh frontier |
+| `ue` | Unvisited edges — số cạnh chưa được duyệt còn lại |
+| `MTEPS` | Mega Traversed Edges Per Second — thước đo chuẩn Graph500 |
+| `Speedup` | Thời gian sequential / thời gian hybrid |
+| `Verify` | PASSED = kết quả hybrid giống hệt sequential |
+
+---
+
+## 9. Xử lý lỗi thường gặp
+
+**`ssh: connect to host node02 port 22: Connection refused`**
 ```bash
-# Kiểm tra SSH service trên node02
+# Kiểm tra SSH service trên node worker
 sudo systemctl status ssh
-sudo systemctl start ssh
-sudo systemctl enable ssh
+sudo systemctl enable --now ssh
 ```
 
-### Lỗi: "There are not enough slots available"
+**`Permission denied (publickey)`**
 ```bash
-# Tăng slots trong hostfile, hoặc thêm --oversubscribe
-mpirun -np 8 --oversubscribe --hostfile hostfile ./bfs_hybrid ...
+# Key chưa được copy đúng, làm lại bước 6.3
+ssh-copy-id mpiuser@node02
+
+# Hoặc kiểm tra trực tiếp trên worker
+cat ~/.ssh/authorized_keys   # Phải thấy public key của node01
+
+# Kiểm tra quyền thư mục
+chmod 700 ~/.ssh
+chmod 600 ~/.ssh/authorized_keys
 ```
 
-### Lỗi: MPI process không tìm thấy binary trên node khác
+**`There are not enough slots available`**
 ```bash
-# Kiểm tra binary có mặt trên tất cả node (nếu không dùng NFS)
-ssh node02 ls ~/bfs-project/bfs_hybrid
-# Nếu không có → copy lại (mục 9.1)
+# Tăng slots trong hostfile, hoặc giảm -np
+# Ví dụ: đang chạy -np 8 nhưng hostfile chỉ có 2 node × slots=2 = 4 slots
+
+# Cách 1: Sửa hostfile
+node01 slots=4    # tăng lên
+node02 slots=4
+
+# Cách 2: Thêm --oversubscribe (dùng khi test, không dùng production)
+mpirun -np 8 --hostfile hostfile --oversubscribe ./bfs_hybrid ...
 ```
 
-### Lỗi: IP VM thay đổi sau khi restart
+**`No such file or directory` khi chạy trên worker**
 ```bash
-# Dùng IP tĩnh (mục 4.3), hoặc tạm thời update /etc/hosts
-ip addr show   # Xem IP hiện tại
-sudo nano /etc/hosts   # Sửa lại IP mới
+# NFS chưa mount hoặc mount sai đường dẫn
+# Kiểm tra trên worker:
+ls ~/bfs-project/bfs_hybrid
+
+# Nếu không thấy → mount lại NFS (bước 6.4)
+sudo mount 192.168.1.101:/home/mpiuser /home/mpiuser
 ```
 
-### Kiểm tra OpenMPI version nhất quán giữa các node
+**IP VM thay đổi sau khi restart**
 ```bash
-# Chạy trên từng node
+# Đặt IP tĩnh trong /etc/netplan/00-installer-config.yaml
+sudo nano /etc/netplan/00-installer-config.yaml
+```
+```yaml
+network:
+  version: 2
+  ethernets:
+    enp0s3:                        # Tên card — dùng `ip addr` để xem
+      dhcp4: no
+      addresses: [192.168.1.101/24]  # Đổi theo từng node
+      routes:
+        - to: default
+          via: 192.168.1.1         # Gateway router
+      nameservers:
+        addresses: [8.8.8.8]
+```
+```bash
+sudo netplan apply
+```
+
+**Verify FAILED — kết quả sai**
+```bash
+# Chạy với graph nhỏ để debug
+OMP_NUM_THREADS=1 mpirun -np 2 ./bfs_hybrid 10000 8 42 --verify
+```
+
+**Kiểm tra version OpenMPI nhất quán**
+```bash
+# Chạy trên từng node — phải ra cùng version
 mpirun --version
-# Phải giống nhau, ví dụ: "Open MPI 4.1.x"
-```
-
-### Xem log chi tiết khi MPI gặp lỗi
-```bash
-mpirun -np 8 --hostfile hostfile --mca btl_base_verbose 30 ./bfs_hybrid ...
+# mpirun (Open MPI) 4.1.6   ← phải giống nhau
 ```
 
 ---
 
-## Tóm tắt nhanh
+## 10. Các hàm MPI được dùng
 
-| Tình huống | Lệnh |
-|------------|------|
-| Compile | `make` |
-| Test 1 node sequential | `./bfs_seq 1000000 16 42` |
-| Test 1 node hybrid | `OMP_NUM_THREADS=4 mpirun -np 1 ./bfs_hybrid 1000000 16 42` |
-| Test 2 node hybrid | `OMP_NUM_THREADS=2 mpirun -np 8 --hostfile hostfile ./bfs_hybrid 1000000 16 42` |
-| Test 4 node hybrid | `OMP_NUM_THREADS=2 mpirun -np 16 --hostfile hostfile ./bfs_hybrid 4000000 16 42` |
-| Benchmark đầy đủ | `./scripts/run_benchmark.sh` |
+| Hàm | Mục đích |
+|-----|----------|
+| `MPI_Init_thread` | Khởi tạo MPI với hỗ trợ thread (`MPI_THREAD_FUNNELED`) |
+| `MPI_Comm_rank` | Lấy rank (ID) của process hiện tại |
+| `MPI_Comm_size` | Lấy tổng số MPI process đang chạy |
+| `MPI_Barrier` | Đồng bộ — tất cả rank phải đến đây mới tiếp tục |
+| `MPI_Allreduce (MAX)` | Merge dist[] toàn cục cuối mỗi level BFS |
+| `MPI_Allreduce (BOR)` | Merge frontier bitmap giữa các rank |
+| `MPI_Abort` | Dừng khẩn cấp tất cả process khi có lỗi nghiêm trọng |
+| `MPI_Finalize` | Kết thúc MPI, giải phóng tài nguyên |

@@ -139,12 +139,9 @@ static void top_down_step(const Graph *g,
                 frontier_edges++;
                 vertex_t v = g->adj[e];
 
-                /* Double-check idiom để giảm atomic contention */
+                /* CAS để tránh race condition giữa các thread */
                 if (dist[v] == -1) {
-                    int old;
-                    #pragma omp atomic capture
-                    { old = dist[v]; if (old == -1) dist[v] = level; }
-
+                    int old = __sync_val_compare_and_swap(&dist[v], -1, level);
                     if (old == -1) {
                         frontier_add_atomic(next, v);
                     }
