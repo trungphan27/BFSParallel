@@ -1,0 +1,37 @@
+Quy trình parallel
+Đầu tiên:
+ip a -> kiểm tra hosts trong máy chủ
+sudo nano /etc/hosts
+xem ip có trùng với các node không 
+xong rồi ping
+Tiếp theo,
+kiểm tra /etc/exports đối với host
+host thì địa chỉ ip là mạng subnet
+/etc/fstab đối với node
+kiểm tra xem ip có phải của host không
+rồi sudo mount -a thử (cả hai)
+xong hết các bước trên chạy 
+mpirun -np 12 --hostfile hostfile hostname 
+Kết quả hiện tên máy chủ là được.
+Cuối cùng chạy code là được
+-------------------------------------------------------
+grep -n "graph_flag\|--graph\|--load\|--save" scripts/run_benchmark.sh | head -20
+
+mpiuser@phamvanvuhoan-Inspiron-14-5445:~/project/BFSParallel$ grep -n "graph_flag\|--graph\|--load\|--save" scripts/run_benchmark.sh | head -20
+133:# Trả về "--graph <file>" nếu file đồ thị ứng với N này đã có sẵn,
+136:graph_flag() {
+140:        echo "--graph $path"
+173:            --save-graph "$path" 2>&1 | grep -E "Saved|generated|vertices" || true
+177:    echo "Xong. Cac lan chay benchmark sau se tu dong dung --graph <file>."
+204:        local gflag; gflag=$(graph_flag "$n")
+231:        local gflag; gflag=$(graph_flag "$n")
+258:    local gflag; gflag=$(graph_flag "$GRANULARITY_N")
+284:    local gflag; gflag=$(graph_flag "$SPEEDUP_N")
+
+sed -i 's/echo "--graph $path"/echo "--load $path"/g' scripts/run_benchmark.sh
+sed -i 's/--save-graph/--save/g' scripts/run_benchmark.sh
+
+OMP_NUM_THREADS=1 mpirun --oversubscribe --allow-run-as-root -np 8 \
+    --hostfile hostfile \
+    ./bfs_hybrid 500000 16 42 \
+    --csv results/test_manual.csv 2>&1 | tail -20

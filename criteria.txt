@@ -1,0 +1,10 @@
+tiêu chí chấm điểm project (project criteria):
+   - run OpenMPI programs on a physical machine (without cluster): 4p
+   - install successfully a cluster OpenMPI: 5p
+   - run a very simple OpenMPI programs on cluster OpenMPI: 6p
+   - satisfy all requirements (number of code line, good OpenMPI's program, good report): 8p 
+(-1p if the number of physical machines < 3 when the number of member > 2)
+   +0.5: set up a cluster quickly during the project defense (just reconnect your laptops in 15 minutes)
+   +0.5: interesting topic
+   +0.5: answer the teacher's question 
+   +0.5: If the topic is a bold idea that will help change the world.

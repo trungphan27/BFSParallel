@@ -1,0 +1,194 @@
+
+<h2 class="sr-only">BFS Hybrid experiment results: scan-N runtime, speedup, granularity load balancing, and verify correctness charts</h2>
+
+<div style="padding: 1rem 0; font-size: 13px; color: var(--color-text-secondary); margin-bottom: 8px;">
+  Cluster: 1 máy, 8 core vật lý — 8 MPI rank × 1 thread (hoặc ít rank × nhiều thread). Đồ thị R-MAT, scale=16, seed=42.
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 24px;">
+  <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 1rem; flex: 1; min-width: 140px;">
+    <div style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px;">N chọn (2-3 phút)</div>
+    <div style="font-size: 22px; font-weight: 500;">6 000 000</div>
+    <div style="font-size: 11px; color: var(--color-text-tertiary);">bfs_time ≈ 103.5 s</div>
+  </div>
+  <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 1rem; flex: 1; min-width: 140px;">
+    <div style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px;">Speedup max (P=1)</div>
+    <div style="font-size: 22px; font-weight: 500;">1.00×</div>
+    <div style="font-size: 11px; color: var(--color-text-tertiary);">comm overhead áp đảo</div>
+  </div>
+  <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 1rem; flex: 1; min-width: 140px;">
+    <div style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px;">Lệch tải (granular)</div>
+    <div style="font-size: 22px; font-weight: 500;">&lt; 0.3%</div>
+    <div style="font-size: 11px; color: var(--color-text-tertiary);">cân bằng tải tốt</div>
+  </div>
+  <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 1rem; flex: 1; min-width: 140px;">
+    <div style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px;">Verify (5 cấu hình)</div>
+    <div style="font-size: 22px; font-weight: 500; color: var(--color-text-success);">5 / 5</div>
+    <div style="font-size: 11px; color: var(--color-text-tertiary);">PASSED ✓</div>
+  </div>
+</div>
+
+<div style="display: flex; gap: 8px; margin-bottom: 8px; font-size: 11px; color: var(--color-text-secondary);">
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:24px;height:3px;background:#378ADD;display:inline-block;border-radius:2px;"></span>Có comm</span>
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:3px;background:#1D9E75;display:inline-block;border-radius:2px;"></span><span style="width:12px;height:3px;background:#1D9E75;display:inline-block;border-radius:2px;border-top:2px dashed #1D9E75;background:transparent;"></span>Không comm</span>
+</div>
+
+<div style="font-size: 13px; font-weight: 500; color: var(--color-text-secondary); margin-bottom: 6px;">5.2 — Thời gian chạy theo kích thước N (P = 8 cố định)</div>
+<div style="position: relative; width: 100%; height: 280px;">
+  <canvas id="c1" role="img" aria-label="Line chart showing BFS runtime vs graph size N for 8 ranks. Runtime grows from 8s at N=500k to 103s at N=6M.">N=500k: 8.4s, N=1M: 12.5s, N=1.5M: 21.5s, N=2M: 25.4s, N=4M: 42.8s, N=6M: 103.5s</canvas>
+</div>
+
+<div style="font-size: 13px; font-weight: 500; color: var(--color-text-secondary); margin: 24px 0 6px;">5.4 — Thời gian chạy theo số tiến trình (N = 8 000 000 cố định)</div>
+<div style="position: relative; width: 100%; height: 260px;">
+  <canvas id="c2" role="img" aria-label="Line chart showing BFS runtime vs number of MPI ranks for N=8M. P=1 is fastest at 115ms, then time increases dramatically with P.">P=1: 115ms, P=2: 155ms, P=4: 208ms, P=8: 86829ms</canvas>
+</div>
+
+<div style="font-size: 13px; font-weight: 500; color: var(--color-text-secondary); margin: 24px 0 6px;">5.4 — Speedup theo số tiến trình</div>
+<div style="display: flex; gap: 8px; margin-bottom: 8px; font-size: 11px; color: var(--color-text-secondary);">
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#378ADD;"></span>Speedup thực tế (có comm)</span>
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#1D9E75;"></span>Speedup thực tế (không comm)</span>
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;background:#E24B4A;display:inline-block;"></span>Lý tưởng (S=P)</span>
+</div>
+<div style="position: relative; width: 100%; height: 260px;">
+  <canvas id="c3" role="img" aria-label="Speedup chart vs number of ranks. Actual speedup drops below 1 at P=8 due to communication overhead dominating.">P=1: 1x, P=2: 0.74x, P=4: 0.55x, P=8: 0.001x</canvas>
+</div>
+
+<div style="font-size: 13px; font-weight: 500; color: var(--color-text-secondary); margin: 24px 0 6px;">5.3 — Granularity / Load balancing (N = 4 000 000, P = 8)</div>
+<div style="display: flex; gap: 8px; margin-bottom: 8px; font-size: 11px; color: var(--color-text-secondary);">
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#378ADD;"></span>compute_ms</span>
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#D85A30;"></span>comm_ms (chờ Allreduce)</span>
+</div>
+<div style="position: relative; width: 100%; height: 300px;">
+  <canvas id="c4" role="img" aria-label="Stacked bar chart showing compute vs communication time per rank for N=4M, 8 ranks. Communication time (around 41394ms) completely dominates compute time (17-25ms) for all ranks.">Rank 0: compute 25ms + comm 41393ms. Rank 1: 23ms + 41394ms. Rank 7: 17ms + 41382ms.</canvas>
+</div>
+
+<div style="font-size: 13px; font-weight: 500; color: var(--color-text-secondary); margin: 24px 0 6px;">5.3 — Số cạnh (local_edges) mỗi rank — minh chứng R-MAT skew</div>
+<div style="position: relative; width: 100%; height: 260px;">
+  <canvas id="c5" role="img" aria-label="Bar chart showing local edge count per rank. Rank 0 has 55M edges vs rank 7 with only 1.8M, demonstrating R-MAT power-law degree distribution skew.">Rank 0: 55.1M, Rank 1: 18.0M, Rank 2: 18.0M, Rank 3: 5.8M, Rank 4: 18.0M, Rank 5: 5.8M, Rank 6: 5.8M, Rank 7: 1.8M</canvas>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const blue = '#378ADD', teal = '#1D9E75', coral = '#D85A30', red = '#E24B4A', amber = '#BA7517', gray = '#888780';
+const gridC = 'rgba(136,135,128,0.15)';
+const txtC = '#888780';
+const baseOpts = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: false }, tooltip: { callbacks: {} } },
+  scales: {
+    x: { grid: { color: gridC }, ticks: { color: txtC, font: { size: 11 } } },
+    y: { grid: { color: gridC }, ticks: { color: txtC, font: { size: 11 } } }
+  }
+};
+
+const nLabels = ['500k','1M','1.5M','2M','4M','6M'];
+const bfsTime = [8.434, 12.470, 21.517, 25.444, 42.757, 103.505];
+const computeOnly = [0.004, 0.007, 0.020, 0.014, 0.026, 0.048];
+const commTime = [8.429, 12.460, 21.493, 25.426, 42.723, 103.417];
+const bfsNoComm = bfsTime.map((t,i) => +(t - commTime[i]).toFixed(3));
+
+new Chart(document.getElementById('c1'), {
+  type: 'line',
+  data: {
+    labels: nLabels,
+    datasets: [
+      { label: 'Có comm', data: bfsTime, borderColor: blue, backgroundColor: blue+'22', fill: false, tension: 0.3, pointRadius: 5, pointBackgroundColor: blue, borderWidth: 2 },
+      { label: 'Không comm', data: bfsNoComm, borderColor: teal, backgroundColor: teal+'22', fill: false, tension: 0.3, pointRadius: 5, pointBackgroundColor: teal, borderWidth: 2, borderDash: [6,3] }
+    ]
+  },
+  options: { ...baseOpts,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(2) + ' s' } } },
+    scales: {
+      x: { ...baseOpts.scales.x, title: { display: true, text: 'Kích thước N (số đỉnh)', color: txtC, font: { size: 11 } } },
+      y: { ...baseOpts.scales.y, title: { display: true, text: 'Thời gian BFS (s)', color: txtC, font: { size: 11 } } }
+    }
+  }
+});
+
+const pLabels = ['1','2','4','8'];
+const timeP = [0.115, 0.155, 0.208, 86.830];
+const commP = [0.000016, 0.072, 0.146, 86.766];
+const timeNoComm = timeP.map((t,i) => +(t - commP[i]).toFixed(4));
+new Chart(document.getElementById('c2'), {
+  type: 'line',
+  data: {
+    labels: pLabels,
+    datasets: [
+      { label: 'Có comm', data: timeP, borderColor: blue, fill: false, tension: 0, pointRadius: 6, pointBackgroundColor: blue, borderWidth: 2 },
+      { label: 'Không comm', data: timeNoComm, borderColor: teal, fill: false, tension: 0, pointRadius: 6, pointBackgroundColor: teal, borderWidth: 2, borderDash: [6,3] }
+    ]
+  },
+  options: { ...baseOpts,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(3) + ' s' } } },
+    scales: {
+      x: { ...baseOpts.scales.x, title: { display: true, text: 'Số MPI rank (P)', color: txtC, font: { size: 11 } } },
+      y: { ...baseOpts.scales.y, type: 'logarithmic', title: { display: true, text: 'Thời gian BFS (s, log)', color: txtC, font: { size: 11 } } }
+    }
+  }
+});
+
+const t1 = timeP[0];
+const speedupWithComm = timeP.map(t => +(t1/t).toFixed(4));
+const speedupNoComm = timeNoComm.map(t => +(timeNoComm[0]/t).toFixed(4));
+const idealSpeedup = [1,2,4,8];
+new Chart(document.getElementById('c3'), {
+  type: 'line',
+  data: {
+    labels: pLabels,
+    datasets: [
+      { label: 'Có comm', data: speedupWithComm, borderColor: blue, fill: false, tension: 0, pointRadius: 6, pointBackgroundColor: blue, borderWidth: 2 },
+      { label: 'Không comm', data: speedupNoComm, borderColor: teal, fill: false, tension: 0, pointRadius: 6, pointBackgroundColor: teal, borderWidth: 2, borderDash: [6,3] },
+      { label: 'Lý tưởng', data: idealSpeedup, borderColor: red, fill: false, tension: 0, pointRadius: 0, borderWidth: 1.5, borderDash: [4,4] }
+    ]
+  },
+  options: { ...baseOpts,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(3) + 'x' } } },
+    scales: {
+      x: { ...baseOpts.scales.x, title: { display: true, text: 'Số MPI rank (P)', color: txtC, font: { size: 11 } } },
+      y: { ...baseOpts.scales.y, min: 0, title: { display: true, text: 'Speedup S(P)', color: txtC, font: { size: 11 } } }
+    }
+  }
+});
+
+const rankLabels = ['Rank 0','Rank 1','Rank 2','Rank 3','Rank 4','Rank 5','Rank 6','Rank 7'];
+const compMs = [24.977, 23.274, 23.294, 22.146, 20.389, 18.752, 18.858, 17.318];
+const commMs = [41393.003, 41394.458, 41394.895, 41395.736, 41378.950, 41380.577, 41380.304, 41382.006];
+new Chart(document.getElementById('c4'), {
+  type: 'bar',
+  data: {
+    labels: rankLabels,
+    datasets: [
+      { label: 'compute_ms', data: compMs, backgroundColor: blue },
+      { label: 'comm_ms', data: commMs, backgroundColor: coral }
+    ]
+  },
+  options: { ...baseOpts,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) + ' ms' } } },
+    scales: {
+      x: { ...baseOpts.scales.x, stacked: true },
+      y: { ...baseOpts.scales.y, stacked: true, title: { display: true, text: 'Thời gian (ms)', color: txtC, font: { size: 11 } } }
+    }
+  }
+});
+
+const localEdges = [55080193, 18006484, 17996405, 5791508, 18006080, 5790254, 5789758, 1844702];
+new Chart(document.getElementById('c5'), {
+  type: 'bar',
+  data: {
+    labels: rankLabels,
+    datasets: [{
+      label: 'Số cạnh local',
+      data: localEdges.map(e => +(e/1e6).toFixed(2)),
+      backgroundColor: rankLabels.map((_,i) => i===0 ? coral : (i===7 ? teal : blue+'99')),
+      borderRadius: 3
+    }]
+  },
+  options: { ...baseOpts,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.parsed.y.toFixed(2) + ' M cạnh' } } },
+    scales: {
+      x: { ...baseOpts.scales.x },
+      y: { ...baseOpts.scales.y, title: { display: true, text: 'Số cạnh (triệu)', color: txtC, font: { size: 11 } } }
+    }
+  }
+});
+</script>

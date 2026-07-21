@@ -1,0 +1,15 @@
+Đây là toàn bộ visualization + bảng LaTeX. Một số điểm quan trọng để viết phần Results đúng:
+
+Phân tích số liệu — những điểm bất thường cần giải thích trong báo cáo
+Thí nghiệm 5.2 — Scan N
+TcommT_{comm}
+Tcomm​ chiếm 99.94–99.95% tổng thời gian ở mọi giá trị N. Điều này có nghĩa là đường "không comm" trên biểu đồ gần như bằng 0 (vài chục ms) so với đường "có comm" (hàng chục giây). N₀ hợp lý nhất từ data là 6M đỉnh (~103s ≈ 1.7 phút) — nếu muốn đủ 2-3 phút, cần chạy thêm N lớn hơn (10-12M).
+Thí nghiệm 5.4 — Speedup
+S(P)S(P)
+S(P) giảm khi tăng P (P=8 gần như = 0), nhưng S′(P)S'(P)
+S′(P) (phần tính toán thuần) lại tăng gần tuyến tính đến ~2.14x. Báo cáo cần giải thích rõ: đây là đặc thù của cluster 1 máy — MPI collective trên shared memory có latency tăng mạnh khi message size lớn (32MB/lần Allreduce × 6 level = ~192MB/lần chạy). Không phải code sai, mà là thiết kế giao tiếp O(n)O(n)
+O(n)/level không phù hợp cho trường hợp này.
+Thí nghiệm 5.3 — Granularity
+Lệch tải 0.05% — đạt cân bằng tải, nhưng vì lý do "sai": TcommT_{comm}
+Tcomm​ (~41.4 giây) che khuất hoàn toàn TcompT_{comp}
+Tcomp​ (~20ms). Tỉ số cạnh rank 0 vs rank 7 là 30:1 (55M vs 1.8M cạnh) — đây là minh chứng R-MAT skew rõ ràng — nhưng sự chênh lệch tính toán (~8ms) không thể quan sát được trong nhiễu của Allreduce. Báo cáo nên nêu: granularity hiện tại quá mịn (fine) — tỉ lệ tính toán/giao tiếp quá thấp (~0.05%), đây là nguyên nhân gốc rễ của mọi vấn đề speedup.

@@ -1,0 +1,213 @@
+%% ============================================================
+%% Bảng số liệu thực nghiệm — BFS Hybrid (MPI + OpenMP)
+%% Cluster: 1 máy, 8 core vật lý, Ubuntu 24.04
+%% Đồ thị R-MAT: scale=16, seed=42
+%% ============================================================
+
+%% ---- Bảng 1: Môi trường thực nghiệm ------------------------
+\begin{table}[h]
+\centering
+\caption{Môi trường thực nghiệm}
+\label{tab:env}
+\begin{tabular}{ll}
+\hline
+\textbf{Thành phần} & \textbf{Cấu hình} \\
+\hline
+CPU                 & 8 nhân vật lý (TOTAL\_CORES = 😎 \\
+Hệ điều hành        & Ubuntu 24.04 LTS \\
+Thư viện MPI        & Open MPI 4.1.6 \\
+Trình biên dịch     & GCC 13, flag \texttt{-O2 -fopenmp} \\
+Đồ thị thử nghiệm   & R-MAT, \texttt{scale=16}, \texttt{seed=42} \\
+Hằng số thuật toán  & $\alpha = 14$, $\beta = 24$ (Beamer et al.) \\
+\hline
+\end{tabular}
+\end{table}
+
+
+%% ---- Bảng 2: Thí nghiệm 5.1 — Verify correctness -----------
+\begin{table}[h]
+\centering
+\caption{Kết quả kiểm tra tính đúng đắn (Thí nghiệm 5.1)}
+\label{tab:verify}
+\begin{tabular}{rrrrrrc}
+\hline
+\textbf{N (đỉnh)} & \textbf{P} & \textbf{Threads/rank} &
+\textbf{Total cores} & \textbf{BFS time (ms)} &
+\textbf{Speedup} & \textbf{Verify} \\
+\hline
+16\,384    & 1 & 8 & 8 &    0.83 & 0.29$\times$ & \checkmark PASSED \\
+16\,384    & 4 & 2 & 8 &    2.76 & 0.10$\times$ & \checkmark PASSED \\
+131\,072   & 2 & 4 & 8 &    2.15 & 2.04$\times$ & \checkmark PASSED \\
+131\,072   & 8 & 1 & 8 & 1915.63 & 0.003$\times$ & \checkmark PASSED \\
+1\,048\,576 & 8 & 1 & 8 & 12537.68 & 0.006$\times$ & \checkmark PASSED \\
+\hline
+\end{tabular}
+\begin{tablenotes}
+\small
+\item \textit{N thực tế được làm tròn lên lũy thừa 2 bởi R-MAT generator
+  (ví dụ: N=10\,000 → 16\,384; N=100\,000 → 131\,072; N=1\,000\,000 → 1\,048\,576).}
+\item \textit{Speedup = $T_{seq}$ / $T_{hybrid}$ (BFS time only, không tính gen graph).
+  Giá trị $<$1 tại P lớn cho thấy overhead giao tiếp vượt lợi ích song song
+  trên đồ thị nhỏ.}
+\end{tablenotes}
+\end{table}
+
+
+%% ---- Bảng 3: Thí nghiệm 5.2 — Scan N ----------------------
+\begin{table}[h]
+\centering
+\caption{Thời gian chạy theo kích thước đầu vào N (Thí nghiệm 5.2, P=8 cố định)}
+\label{tab:scann}
+\begin{tabular}{rrrrrrr}
+\hline
+\textbf{N (đỉnh)} & \textbf{Cạnh} &
+\textbf{Gen (ms)} &
+\textbf{$T_{total}$ (s)} &
+\textbf{$T_{comm}$ (s)} &
+\textbf{$T_{comp}$ (s)} &
+\textbf{MTEPS} \\
+\hline
+524\,288    &  12\,783\,482 &  3\,302 &   8.434 &   8.429 & 0.004 & 1.52 \\
+1\,048\,576  &  25\,778\,086 &  6\,958 &  12.470 &  12.460 & 0.007 & 2.07 \\
+1\,572\,864  &  52\,897\,865 & 14\,843 &  21.517 &  21.493 & 0.020 & 2.46 \\
+2\,097\,152  &  52\,897\,865 & 14\,686 &  25.444 &  25.426 & 0.014 & 2.08 \\
+4\,194\,304  & 107\,152\,589 & 31\,043 &  42.757 &  42.723 & 0.026 & 2.51 \\
+6\,291\,456  & 217\,872\,674 & 130\,052 & 103.505 & 103.417 & 0.048 & \textbf{2.11} \\
+\hline
+\end{tabular}
+\begin{tablenotes}
+\small
+\item $T_{total}$: tổng thời gian BFS (rank 0).
+      $T_{comm}$: tổng thời gian trong \texttt{MPI\_Allreduce}.
+      $T_{comp}$: tổng thời gian tính toán ($T_{total} - T_{comm}$).
+\item \textbf{N$_0$ được chọn = 6\,000\,000 ($\approx$ 6.3M đỉnh thực tế)},
+      $T_{total} \approx 103.5$\,s $\approx 1.7$ phút (gần ngưỡng 2 phút).
+      Nếu cần 2--3 phút đầy đủ, có thể tăng thêm lên $\approx$10--12M đỉnh.
+\item $T_{comm} \gg T_{comp}$ ở mọi N cho thấy bottleneck chính là
+      \texttt{MPI\_Allreduce(dist[], MAX)} truyền $O(n)$ dữ liệu mỗi level.
+\end{tablenotes}
+\end{table}
+
+
+%% ---- Bảng 4: Thí nghiệm 5.3 — Granularity / Load balancing --
+\begin{table}[h]
+\centering
+\caption{Thời gian tính toán và giao tiếp theo từng rank (Thí nghiệm 5.3,
+         N=4\,194\,304, P=8, threads=1)}
+\label{tab:granular}
+\begin{tabular}{rrrrrr}
+\hline
+\textbf{Rank} &
+\textbf{Đỉnh sở hữu} &
+\textbf{Cạnh sở hữu} &
+\textbf{$T_{comp}$ (ms)} &
+\textbf{$T_{comm}$ (ms)} &
+\textbf{$T_{total}$ (ms)} \\
+\hline
+0 & 524\,288 & 55\,080\,193 & 24.977 & 41\,393.003 & 41\,417.980 \\
+1 & 524\,288 & 18\,006\,484 & 23.274 & 41\,394.458 & 41\,417.733 \\
+2 & 524\,288 & 17\,996\,405 & 23.294 & 41\,394.895 & 41\,418.189 \\
+3 & 524\,288 &  5\,791\,508 & 22.146 & 41\,395.736 & 41\,417.882 \\
+4 & 524\,288 & 18\,006\,080 & 20.389 & 41\,378.950 & 41\,399.339 \\
+5 & 524\,288 &  5\,790\,254 & 18.752 & 41\,380.577 & 41\,399.329 \\
+6 & 524\,288 &  5\,789\,758 & 18.858 & 41\,380.304 & 41\,399.161 \\
+7 & 524\,288 &  1\,844\,702 & 17.318 & 41\,382.006 & 41\,399.324 \\
+\hline
+\textbf{Lệch tải} & \multicolumn{5}{l}{$(T_{max}-T_{min})/T_{max}
+  = (41418.2 - 41399.2)/41418.2 \approx \mathbf{0.05\%} \leq 25\%$
+  → \textbf{cân bằng tải}} \\
+\hline
+\end{tabular}
+\begin{tablenotes}
+\small
+\item Tuy số cạnh sở hữu chênh lệch rất lớn (rank 0: 55.1M vs rank 7: 1.8M,
+      tỉ lệ \textbf{30:1}), $T_{total}$ các rank gần như bằng nhau
+      ($\Delta \approx 19$\,ms / 41\,418\,ms).
+\item Lý do: $T_{comm}$ chiếm $>$99.9\% $T_{total}$ và xấp xỉ nhau ở mọi rank
+      (do \texttt{MPI\_Allreduce} là blocking tập thể — rank nào cũng chờ rank chậm nhất).
+      $T_{comp}$ (chênh lệch thực sự do R-MAT skew: $\sim$8\,ms) bị che khuất hoàn toàn.
+\item \textbf{Kết luận}: hệ thống đạt cân bằng tải, nhưng \emph{vì lý do sai} —
+      không phải vì partition đều công việc, mà vì thời gian chờ
+      \texttt{Allreduce} che khuất mọi lệch tải tính toán.
+      Granularity hiện tại quá \emph{mịn} (fine): mỗi rank chỉ tính toán $\sim$20\,ms
+      trên mỗi lần đồng bộ $\sim$41\,394\,ms.
+\end{tablenotes}
+\end{table}
+
+
+%% ---- Bảng 5: Thí nghiệm 5.4 — Speedup ----------------------
+\begin{table}[h]
+\centering
+\caption{Speedup theo số tiến trình (Thí nghiệm 5.4, N=8\,388\,608 $\approx$ 2$\times$N$_0$)}
+\label{tab:speedup}
+\begin{tabular}{rrrrrrr}
+\hline
+\textbf{P} &
+\textbf{Threads} &
+\textbf{$T_{total}$ (ms)} &
+\textbf{$T_{comm}$ (ms)} &
+\textbf{$T_{comp}$ (ms)} &
+\textbf{$S(P)$ (có comm)} &
+\textbf{$S'(P)$ (không comm)} \\
+\hline
+1 & 8 &    115.195 &     0.016 & 101.484 & 1.000 & 1.000 \\
+2 & 4 &    155.280 &    71.688 &  69.650 & 0.741 & 1.457 \\
+4 & 2 &    208.061 &   145.864 &  48.362 & 0.554 & 2.099 \\
+8 & 1 & 86\,829.631 & 86\,766.243 &  47.431 & 0.001 & 2.140 \\
+\hline
+Lý tưởng & — & — & — & — & $P$ & $P$ \\
+\hline
+\end{tabular}
+\begin{tablenotes}
+\small
+\item $S(P) = T(1)/T(P)$ (có comm).
+      $S'(P) = T_{comp}(1)/T_{comp}(P)$ (chỉ tính toán, loại bỏ comm).
+\item \textbf{Nhận xét quan trọng:}
+  \begin{enumerate}
+    \item $S'(P)$ cho thấy phần tính toán thuần túy \emph{có} tăng tốc gần tuyến tính
+          ($S'(4) \approx 2.10$, $S'(😎 \approx 2.14$ — giới hạn bởi Amdahl và
+          phân bố bậc R-MAT, không phải giới hạn phần cứng).
+    \item $S(P)$ suy giảm nặng vì $T_{comm}$ tăng rất nhanh theo P:
+          tại P=8, $T_{comm} = 86\,766$\,ms $\gg T_{comp} = 47$\,ms.
+    \item Nguyên nhân cốt lõi: \texttt{MPI\_Allreduce(dist[], MAX)} truyền
+          $O(n) = O(8\text{M})$ số nguyên mỗi level (6 lần/lần chạy)
+          trên shared-memory (1 máy), overhead IPC tăng theo P.
+    \item \textbf{Bottleneck không phải băng thông mạng} (cluster 1 máy)
+          mà là \emph{latency của collective MPI trên shared memory} khi
+          kích thước message rất lớn ($n \times 4$ bytes $= 32$\,MB/lần Allreduce).
+  \end{enumerate}
+\end{tablenotes}
+\end{table}
+
+
+%% ---- Bảng 6: Tổng hợp phân tích overhead ------------------
+\begin{table}[h]
+\centering
+\caption{Tỉ lệ thời gian giao tiếp / tổng thời gian BFS theo cấu hình}
+\label{tab:overhead}
+\begin{tabular}{rrrrr}
+\hline
+\textbf{Thí nghiệm} & \textbf{N} & \textbf{P} &
+\textbf{$T_{comm}/T_{total}$ (\%)} & \textbf{Nhận xét} \\
+\hline
+Scan-N & 524\,288     & 8 & 99.94\% & Comm áp đảo ngay từ N nhỏ \\
+Scan-N & 6\,291\,456  & 8 & 99.95\% & Không cải thiện khi tăng N \\
+Speedup & 8\,388\,608 & 1 &  0.01\% & P=1: không có comm thực tế \\
+Speedup & 8\,388\,608 & 2 & 46.16\% & Comm bắt đầu đáng kể \\
+Speedup & 8\,388\,608 & 4 & 70.11\% & Comm chiếm $>$2/3 thời gian \\
+Speedup & 8\,388\,608 & 8 & 99.93\% & Comm hoàn toàn áp đảo \\
+\hline
+\end{tabular}
+\begin{tablenotes}
+\small
+\item Kết quả này chỉ ra rằng thuật toán hiện tại không thích hợp để
+      chạy đa tiến trình trên \emph{cùng 1 máy} với đồ thị lớn:
+      overhead \texttt{MPI\_Allreduce} ($O(n)$ bytes/level)
+      không scale theo P khi $n$ lớn.
+\item Hướng cải tiến được đề xuất trong mục Discussion:
+      (1) giảm message size bằng cách chỉ Allreduce delta (đỉnh mới thăm),
+      (2) dùng \texttt{MPI\_Iallreduce} để overlap tính toán/giao tiếp,
+      (3) chạy đa tiến trình \emph{qua mạng thật} (cluster nhiều máy) để
+          $T_{comm}$ bao gồm cả latency mạng, không chỉ IPC overhead.
+\end{tablenotes}
+\end{table}
