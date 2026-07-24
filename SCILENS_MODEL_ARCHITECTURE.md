@@ -51,9 +51,7 @@ LLM chỉ là một thành phần sinh ngôn ngữ ở cuối pipeline. LLM khô
 
 Một paper $D$ có thể gồm:
 
-$$
-D = \{P, S, X, M\}
-$$
+$$ D = \{P, S, X, M\} $$
 
 trong đó:
 
@@ -74,12 +72,7 @@ Phiên bản đầu nên giới hạn:
 
 Hệ thống tạo:
 
-$$
-Y = \{Y_{\text{summary}},Y_{\text{equation}},
-Y_{\text{result}},Y_{\text{ablation}},
-Y_{\text{contribution}},Y_{\text{limitation}},
-Y_{\text{evidence}},Y_{\text{confidence}}\}
-$$
+$$ Y = \{Y_{\text{summary}},Y_{\text{equation}}, Y_{\text{result}},Y_{\text{ablation}}, Y_{\text{contribution}},Y_{\text{limitation}}, Y_{\text{evidence}},Y_{\text{confidence}}\} $$
 
 Cụ thể:
 
@@ -100,18 +93,11 @@ Cụ thể:
 
 Thay vì học trực tiếp:
 
-$$
-p(Y\mid D),
-$$
+$$ p(Y\mid D), $$
 
 SciLens phân rã thành:
 
-$$
-p(G\mid D)
-\;p(Z\mid G)
-\;p(Y\mid Z,G)
-\;p(V\mid Y,G),
-$$
+$$ p(G\mid D) \;p(Z\mid G) \;p(Y\mid Z,G) \;p(V\mid Y,G), $$
 
 trong đó:
 
@@ -321,9 +307,7 @@ Mỗi object bắt buộc có:
 
 Graph:
 
-$$
-G=(\mathcal{V},\mathcal{E},\tau,\phi),
-$$
+$$ G=(\mathcal{V},\mathcal{E},\tau,\phi), $$
 
 với:
 
@@ -394,10 +378,7 @@ unsupported_or_corrupted
 
 Đồng thời dự đoán quality vector:
 
-$$
-q=[q_{\text{text}},q_{\text{layout}},q_{\text{equation}},
-q_{\text{table}},q_{\text{scan}}].
-$$
+$$ q=[q_{\text{text}},q_{\text{layout}},q_{\text{equation}}, q_{\text{table}},q_{\text{scan}}]. $$
 
 ### 6.3. Kiến trúc
 
@@ -416,11 +397,7 @@ Phiên bản học máy có thể dùng:
 - metadata feature MLP;
 - late fusion classifier.
 
-$$
-\mathbf{h}_{\text{route}}
-=
-\operatorname{MLP}([\mathbf{h}_{\text{page}};\mathbf{x}_{\text{meta}}]).
-$$
+$$ \mathbf{h}_{\text{route}} = \operatorname{MLP}([\mathbf{h}_{\text{page}};\mathbf{x}_{\text{meta}}]). $$
 
 ### 6.4. Huấn luyện
 
@@ -429,12 +406,7 @@ $$
 - cross-entropy cho route;
 - regression loss cho quality dimensions.
 
-$$
-\mathcal{L}_{\text{route}}
-=
-\mathcal{L}_{\text{CE}}
-+\lambda_q\mathcal{L}_{\text{Huber}}.
-$$
+$$ \mathcal{L}_{\text{route}} = \mathcal{L}_{\text{CE}} +\lambda_q\mathcal{L}_{\text{Huber}}. $$
 
 ### 6.5. Khuyến nghị
 
@@ -481,13 +453,7 @@ Dùng pretrained [LayoutLMv3](https://arxiv.org/abs/2204.08387) hoặc layout mo
 
 Input token:
 
-$$
-\mathbf{x}_i =
-\mathbf{e}_{\text{text},i}
-+\mathbf{e}_{\text{bbox},i}
-+\mathbf{e}_{\text{page},i}
-+\mathbf{e}_{\text{visual},i}.
-$$
+$$ \mathbf{x}_i = \mathbf{e}_{\text{text},i} +\mathbf{e}_{\text{bbox},i} +\mathbf{e}_{\text{page},i} +\mathbf{e}_{\text{visual},i}. $$
 
 LayoutLMv3 có unified text/image masking và word–patch alignment, phù hợp để tạo biểu diễn kết hợp text, layout và image patch.
 
@@ -500,13 +466,7 @@ Các head:
 
 Reading order có thể được học như edge prediction:
 
-$$
-p(i\rightarrow j)
-=
-\sigma(\operatorname{MLP}[
-\mathbf{h}_i;\mathbf{h}_j;
-\Delta\mathbf{b}_{ij}]).
-$$
+$$ p(i\rightarrow j) = \sigma(\operatorname{MLP}[ \mathbf{h}_i;\mathbf{h}_j; \Delta\mathbf{b}_{ij}]). $$
 
 Sau đó tìm ordering hợp lệ bằng graph decoding có ràng buộc.
 
@@ -530,14 +490,7 @@ Dùng [Nougat](https://arxiv.org/abs/2308.13418), một visual encoder–text de
 
 Loss:
 
-$$
-\mathcal{L}_{\text{layout}}
-=
-\lambda_{\text{cls}}\mathcal{L}_{\text{block-cls}}
-+\lambda_{\text{box}}\mathcal{L}_{\text{box}}
-+\lambda_{\text{ord}}\mathcal{L}_{\text{order}}
-+\lambda_{\text{head}}\mathcal{L}_{\text{heading}}.
-$$
+$$ \mathcal{L}_{\text{layout}} = \lambda_{\text{cls}}\mathcal{L}_{\text{block-cls}} +\lambda_{\text{box}}\mathcal{L}_{\text{box}} +\lambda_{\text{ord}}\mathcal{L}_{\text{order}} +\lambda_{\text{head}}\mathcal{L}_{\text{heading}}. $$
 
 ### 7.5. Output
 
@@ -613,20 +566,11 @@ autoregressive Transformer decoder
 LaTeX tokens
 ```
 
-$$
-p(L\mid I)
-=
-\prod_{t=1}^{T}
-p(l_t\mid l_{<t},\operatorname{Enc}_{\text{vision}}(I)).
-$$
+$$ p(L\mid I) = \prod_{t=1}^{T} p(l_t\mid l_{<t},\operatorname{Enc}_{\text{vision}}(I)). $$
 
 #### Loss
 
-$$
-\mathcal{L}_{\text{LaTeX}}
-=
--\sum_t\log p(l_t^\star\mid l_{<t}^\star,I),
-$$
+$$ \mathcal{L}_{\text{LaTeX}} = -\sum_t\log p(l_t^\star\mid l_{<t}^\star,I), $$
 
 kèm:
 
@@ -659,22 +603,11 @@ Normalized LaTeX ─► Transformer ───┘
 Local context ─► SciBERT ──────────┘
 ```
 
-$$
-\mathbf{h}_{\text{eq}}
-=
-g_v\mathbf{h}_{\text{vision}}
-+g_l\mathbf{h}_{\text{LaTeX}}
-+g_c\mathbf{h}_{\text{context}},
-$$
+$$ \mathbf{h}_{\text{eq}} = g_v\mathbf{h}_{\text{vision}} +g_l\mathbf{h}_{\text{LaTeX}} +g_c\mathbf{h}_{\text{context}}, $$
 
 với:
 
-$$
-[g_v,g_l,g_c]
-=
-\operatorname{softmax}(\operatorname{MLP}
-[\mathbf{h}_{\text{vision}};\mathbf{h}_{\text{LaTeX}};\mathbf{h}_{\text{context}}]).
-$$
+$$ [g_v,g_l,g_c] = \operatorname{softmax}(\operatorname{MLP} [\mathbf{h}_{\text{vision}};\mathbf{h}_{\text{LaTeX}};\mathbf{h}_{\text{context}}]). $$
 
 Mô hình có thể giảm trọng số image nếu LaTeX source đáng tin và tăng trọng số image khi source thiếu.
 
@@ -704,21 +637,11 @@ Tìm ở:
 
 Bi-encoder để retrieve candidates:
 
-$$
-s_{\text{retr}}(s,d)
-=
-\cos(\mathbf{h}_s,\mathbf{h}_d).
-$$
+$$ s_{\text{retr}}(s,d) = \cos(\mathbf{h}_s,\mathbf{h}_d). $$
 
 Cross-encoder reranker:
 
-$$
-p(d\mid s)
-=
-\operatorname{softmax}\!\left(
-\operatorname{MLP}(\operatorname{CrossEnc}[s;\text{eq};d])
-\right).
-$$
+$$ p(d\mid s) = \operatorname{softmax}\!\left( \operatorname{MLP}(\operatorname{CrossEnc}[s;\text{eq};d]) \right). $$
 
 #### Huấn luyện
 
@@ -747,23 +670,11 @@ unimportant
 
 MLP multi-label head trên $\mathbf{h}_{eq}$ đã được graph-contextualize:
 
-$$
-\mathbf{p}_{\text{role}}
-=
-\sigma(\mathbf{W}_{\text{role}}\mathbf{h}_{\text{eq}}+\mathbf{b}).
-$$
+$$ \mathbf{p}_{\text{role}} = \sigma(\mathbf{W}_{\text{role}}\mathbf{h}_{\text{eq}}+\mathbf{b}). $$
 
 Salience:
 
-$$
-s_{\text{eq}}
-=
-\operatorname{MLP}
-[\mathbf{h}_{\text{eq}};
-\mathbf{x}_{\text{references}};
-\mathbf{x}_{\text{section}};
-\mathbf{x}_{\text{position}}].
-$$
+$$ s_{\text{eq}} = \operatorname{MLP} [\mathbf{h}_{\text{eq}}; \mathbf{x}_{\text{references}}; \mathbf{x}_{\text{section}}; \mathbf{x}_{\text{position}}]. $$
 
 #### Huấn luyện
 
@@ -795,16 +706,7 @@ Verifier kiểm tra mọi symbol trong explanation có definition hoặc source 
 
 ### 8.7. Loss tổng M2
 
-$$
-\mathcal{L}_{\text{eq}}
-=
-\lambda_d\mathcal{L}_{\text{detect}}
-+\lambda_l\mathcal{L}_{\text{LaTeX}}
-+\lambda_g\mathcal{L}_{\text{ground}}
-+\lambda_r\mathcal{L}_{\text{role}}
-+\lambda_s\mathcal{L}_{\text{salience}}
-+\lambda_a\mathcal{L}_{\text{alignment}}.
-$$
+$$ \mathcal{L}_{\text{eq}} = \lambda_d\mathcal{L}_{\text{detect}} +\lambda_l\mathcal{L}_{\text{LaTeX}} +\lambda_g\mathcal{L}_{\text{ground}} +\lambda_r\mathcal{L}_{\text{role}} +\lambda_s\mathcal{L}_{\text{salience}} +\lambda_a\mathcal{L}_{\text{alignment}}. $$
 
 ### 8.8. Phần nào nên huấn luyện?
 
@@ -890,17 +792,7 @@ Linearize table thành một chuỗi dài dễ làm mất quan hệ hàng/cột 
 
 Mỗi cell:
 
-$$
-\mathbf{x}_{\text{cell}}
-=
-\mathbf{e}_{\text{text}}
-+\mathbf{e}_{\text{row}}
-+\mathbf{e}_{\text{col}}
-+\mathbf{e}_{\text{row-path}}
-+\mathbf{e}_{\text{col-path}}
-+\mathbf{e}_{\text{style}}
-+\mathbf{e}_{\text{numeric}}.
-$$
+$$ \mathbf{x}_{\text{cell}} = \mathbf{e}_{\text{text}} +\mathbf{e}_{\text{row}} +\mathbf{e}_{\text{col}} +\mathbf{e}_{\text{row-path}} +\mathbf{e}_{\text{col-path}} +\mathbf{e}_{\text{style}} +\mathbf{e}_{\text{numeric}}. $$
 
 Encoder gồm:
 
@@ -931,11 +823,7 @@ other
 
 Classifier:
 
-$$
-p(r\mid T)
-=
-\operatorname{softmax}(\mathbf{W}_r\mathbf{h}_T).
-$$
+$$ p(r\mid T) = \operatorname{softmax}(\mathbf{W}_r\mathbf{h}_T). $$
 
 Huấn luyện bằng weighted cross-entropy hoặc focal loss.
 
@@ -966,12 +854,7 @@ Các head:
 
 Score một tuple candidate:
 
-$$
-s(\text{method},\text{dataset},\text{metric},\text{cell})
-=
-\operatorname{MLP}
-[\mathbf{h}_m;\mathbf{h}_d;\mathbf{h}_{metric};\mathbf{h}_{cell}].
-$$
+$$ s(\text{method},\text{dataset},\text{metric},\text{cell}) = \operatorname{MLP} [\mathbf{h}_m;\mathbf{h}_d;\mathbf{h}_{metric};\mathbf{h}_{cell}]. $$
 
 Negative samples:
 
@@ -1019,34 +902,17 @@ result COMPARED_WITH control
 
 #### Relation classifier
 
-$$
-p(r_{ij})
-=
-\operatorname{softmax}\!\left(
-\operatorname{MLP}
-[\mathbf{h}_i;\mathbf{h}_j;
-\mathbf{h}_i\odot\mathbf{h}_j;
-\mathbf{e}_{\text{table-position}}]
-\right).
-$$
+$$ p(r_{ij}) = \operatorname{softmax}\!\left( \operatorname{MLP} [\mathbf{h}_i;\mathbf{h}_j; \mathbf{h}_i\odot\mathbf{h}_j; \mathbf{e}_{\text{table-position}}] \right). $$
 
 #### Delta
 
 Với metric higher-is-better:
 
-$$
-\Delta_{\text{impact}}
-=
-s_{\text{full}}-s_{\text{variant}}.
-$$
+$$ \Delta_{\text{impact}} = s_{\text{full}}-s_{\text{variant}}. $$
 
 Với metric lower-is-better:
 
-$$
-\Delta_{\text{impact}}
-=
-s_{\text{variant}}-s_{\text{full}}.
-$$
+$$ \Delta_{\text{impact}} = s_{\text{variant}}-s_{\text{full}}. $$
 
 $\Delta_{\text{impact}}>0$ nghĩa là bỏ/thay component làm hiệu năng xấu đi.
 
@@ -1077,25 +943,11 @@ Không lấy mọi số trong paper. Result salience dùng:
 
 Pairwise ranker học:
 
-$$
-\mathcal{L}_{\text{rank}}
-=
--\log\sigma(s_{\text{positive}}-s_{\text{negative}}).
-$$
+$$ \mathcal{L}_{\text{rank}} = -\log\sigma(s_{\text{positive}}-s_{\text{negative}}). $$
 
 ### 9.8. Loss tổng M3
 
-$$
-\mathcal{L}_{\text{table}}
-=
-\lambda_{\text{det}}\mathcal{L}_{\text{TATR}}
-+\lambda_{\text{role}}\mathcal{L}_{\text{table-role}}
-+\lambda_{\text{cell}}\mathcal{L}_{\text{cell-type}}
-+\lambda_{\text{link}}\mathcal{L}_{\text{header-link}}
-+\lambda_{\text{tuple}}\mathcal{L}_{\text{result-tuple}}
-+\lambda_{\text{abl}}\mathcal{L}_{\text{ablation}}
-+\lambda_{\text{rank}}\mathcal{L}_{\text{result-rank}}.
-$$
+$$ \mathcal{L}_{\text{table}} = \lambda_{\text{det}}\mathcal{L}_{\text{TATR}} +\lambda_{\text{role}}\mathcal{L}_{\text{table-role}} +\lambda_{\text{cell}}\mathcal{L}_{\text{cell-type}} +\lambda_{\text{link}}\mathcal{L}_{\text{header-link}} +\lambda_{\text{tuple}}\mathcal{L}_{\text{result-tuple}} +\lambda_{\text{abl}}\mathcal{L}_{\text{ablation}} +\lambda_{\text{rank}}\mathcal{L}_{\text{result-rank}}. $$
 
 ### 9.9. Evaluation
 
@@ -1138,20 +990,11 @@ Contextualized span/claim representations
 
 Dùng [SciBERT](https://aclanthology.org/D19-1371/) hoặc một encoder đã pretrain trên scientific text.
 
-$$
-\mathbf{H}^{\text{token}}
-=
-\operatorname{SciEnc}(x_1,\ldots,x_n).
-$$
+$$ \mathbf{H}^{\text{token}} = \operatorname{SciEnc}(x_1,\ldots,x_n). $$
 
 #### Tầng 2 — Sentence/paragraph pooling
 
-$$
-\mathbf{h}_{\text{sent}}
-=
-\operatorname{AttentionPool}
-(\mathbf{H}^{\text{token}}_{\text{sent}}).
-$$
+$$ \mathbf{h}_{\text{sent}} = \operatorname{AttentionPool} (\mathbf{H}^{\text{token}}_{\text{sent}}). $$
 
 Có thể thêm:
 
@@ -1198,11 +1041,7 @@ other
 
 #### Head
 
-$$
-\mathbf{p}_{\text{rhet}}
-=
-\sigma(\mathbf{W}_{\text{rhet}}\mathbf{h}_{\text{sent}}+\mathbf{b}).
-$$
+$$ \mathbf{p}_{\text{rhet}} = \sigma(\mathbf{W}_{\text{rhet}}\mathbf{h}_{\text{sent}}+\mathbf{b}). $$
 
 #### Huấn luyện
 
@@ -1228,12 +1067,7 @@ ASSUMPTION, BASELINE
 - biaffine span scorer hoặc span-based NER;
 - entity normalization head để liên kết các alias.
 
-$$
-s_{\text{span}}(i,j,t)
-=
-\operatorname{MLP}_t
-[\mathbf{h}_i;\mathbf{h}_j;\mathbf{e}_{\text{width}}].
-$$
+$$ s_{\text{span}}(i,j,t) = \operatorname{MLP}_t [\mathbf{h}_i;\mathbf{h}_j;\mathbf{e}_{\text{width}}]. $$
 
 SciREX, SciER và AxCell có thể dùng cho warm-start một phần taxonomy.
 
@@ -1349,16 +1183,7 @@ Training phải đặc biệt chú ý `unsupported` để mô hình học không
 
 ### 10.9. Loss tổng M4
 
-$$
-\mathcal{L}_{\text{text}}
-=
-\lambda_{\text{rhet}}\mathcal{L}_{\text{rhet}}
-+\lambda_{\text{ner}}\mathcal{L}_{\text{NER}}
-+\lambda_{\text{rel}}\mathcal{L}_{\text{relation}}
-+\lambda_{\text{claim}}\mathcal{L}_{\text{claim}}
-+\lambda_{\text{contrib}}\mathcal{L}_{\text{contribution}}
-+\lambda_{\text{limit}}\mathcal{L}_{\text{limitation}}.
-$$
+$$ \mathcal{L}_{\text{text}} = \lambda_{\text{rhet}}\mathcal{L}_{\text{rhet}} +\lambda_{\text{ner}}\mathcal{L}_{\text{NER}} +\lambda_{\text{rel}}\mathcal{L}_{\text{relation}} +\lambda_{\text{claim}}\mathcal{L}_{\text{claim}} +\lambda_{\text{contrib}}\mathcal{L}_{\text{contribution}} +\lambda_{\text{limit}}\mathcal{L}_{\text{limitation}}. $$
 
 ### 10.10. Phần nào được huấn luyện?
 
@@ -1429,17 +1254,7 @@ Flat chunking không tạo một representation thống nhất cho các loại o
 
 Mỗi node $v$:
 
-$$
-\mathbf{h}_v^{(0)}
-=
-\mathbf{W}_{\tau(v)}
-[\mathbf{e}_{\text{content}};
-\mathbf{e}_{\text{type}};
-\mathbf{e}_{\text{section}};
-\mathbf{e}_{\text{position}};
-\mathbf{e}_{\text{layout}};
-\mathbf{e}_{\text{confidence}}].
-$$
+$$ \mathbf{h}_v^{(0)} = \mathbf{W}_{\tau(v)} [\mathbf{e}_{\text{content}}; \mathbf{e}_{\text{type}}; \mathbf{e}_{\text{section}}; \mathbf{e}_{\text{position}}; \mathbf{e}_{\text{layout}}; \mathbf{e}_{\text{confidence}}]. $$
 
 Trong đó:
 
@@ -1468,61 +1283,21 @@ SciLens dựa trên ý tưởng [Heterogeneous Graph Transformer](https://arxiv.
 
 Với edge $e=(s,r,t)$:
 
-$$
-\mathbf{q}_t
-=
-\mathbf{W}^{\mathrm{Q}}_{\tau(t)}\mathbf{h}_t,
-$$
+$$ \mathbf{q}_t = \mathbf{W}^{\mathrm{Q}}_{\tau(t)}\mathbf{h}_t, $$
 
-$$
-\mathbf{k}_s^{r}
-=
-\mathbf{W}^{\mathrm{K}}_{\tau(s),r}\mathbf{h}_s,
-\qquad
-\mathbf{v}_s^{r}
-=
-\mathbf{W}^{\mathrm{V}}_{\tau(s),r}\mathbf{h}_s.
-$$
+$$ \mathbf{k}_s^{r} = \mathbf{W}^{\mathrm{K}}_{\tau(s),r}\mathbf{h}_s, \qquad \mathbf{v}_s^{r} = \mathbf{W}^{\mathrm{V}}_{\tau(s),r}\mathbf{h}_s. $$
 
 Attention:
 
-$$
-\alpha_{s\rightarrow t}^{r}
-=
-\operatorname{softmax}_{s\in\mathcal{N}(t)}
-\left(
-\frac{\mathbf{q}_t^\top
-\mathbf{W}^{\mathrm{ATT}}_{r}\mathbf{k}_s^r}
-{\sqrt{d}}
-+b_r
-\right).
-$$
+$$ \alpha_{s\rightarrow t}^{r} = \operatorname{softmax}_{s\in\mathcal{N}(t)} \left( \frac{\mathbf{q}_t^\top \mathbf{W}^{\mathrm{ATT}}_{r}\mathbf{k}_s^r} {\sqrt{d}} +b_r \right). $$
 
 Message:
 
-$$
-\mathbf{m}_{s\rightarrow t}^{r}
-=
-\alpha_{s\rightarrow t}^{r}
-\mathbf{W}^{\mathrm{MSG}}_{r}\mathbf{v}_s^r.
-$$
+$$ \mathbf{m}_{s\rightarrow t}^{r} = \alpha_{s\rightarrow t}^{r} \mathbf{W}^{\mathrm{MSG}}_{r}\mathbf{v}_s^r. $$
 
 Update:
 
-$$
-\mathbf{h}_t^{(l+1)}
-=
-\operatorname{LayerNorm}
-\left(
-\mathbf{h}_t^{(l)}
-+
-\operatorname{FFN}_{\tau(t)}
-\left(
-\sum_{r}\sum_{s\in\mathcal{N}_r(t)}
-\mathbf{m}_{s\rightarrow t}^{r}
-\right)
-\right).
-$$
+$$ \mathbf{h}_t^{(l+1)} = \operatorname{LayerNorm} \left( \mathbf{h}_t^{(l)} + \operatorname{FFN}_{\tau(t)} \left( \sum_{r}\sum_{s\in\mathcal{N}_r(t)} \mathbf{m}_{s\rightarrow t}^{r} \right) \right). $$
 
 ### 12.4. Global paper node
 
@@ -1555,31 +1330,15 @@ Mục tiêu là tránh $O(|V|^2)$ và giảm noisy message passing.
 
 Che node type/role/entity label rồi dự đoán:
 
-$$
-\mathcal{L}_{\text{MNM}}
-=
--\sum_{v\in\mathcal{M}}\log p(a_v\mid G_{\setminus\mathcal{M}}).
-$$
+$$ \mathcal{L}_{\text{MNM}} = -\sum_{v\in\mathcal{M}}\log p(a_v\mid G_{\setminus\mathcal{M}}). $$
 
 #### Edge prediction
 
-$$
-\mathcal{L}_{\text{edge}}
-=
--\sum_{(u,r,v)}
-\log p(r\mid \mathbf{h}_u,\mathbf{h}_v).
-$$
+$$ \mathcal{L}_{\text{edge}} = -\sum_{(u,r,v)} \log p(r\mid \mathbf{h}_u,\mathbf{h}_v). $$
 
 #### Claim–evidence contrastive alignment
 
-$$
-\mathcal{L}_{\text{CE-align}}
-=
--\log
-\frac{\exp(\operatorname{sim}(c,e^+)/\tau)}
-{\exp(\operatorname{sim}(c,e^+)/\tau)+
-\sum_{e^-}\exp(\operatorname{sim}(c,e^-)/\tau)}.
-$$
+$$ \mathcal{L}_{\text{CE-align}} = -\log \frac{\exp(\operatorname{sim}(c,e^+)/\tau)} {\exp(\operatorname{sim}(c,e^+)/\tau)+ \sum_{e^-}\exp(\operatorname{sim}(c,e^-)/\tau)}. $$
 
 #### Equation–context alignment
 
@@ -1631,11 +1390,7 @@ M7 nhận contextualized node embeddings từ M6.
 
 Dự đoán node có cần vào summary:
 
-$$
-p_v^{\text{sal}}
-=
-\sigma(\operatorname{MLP}_{\text{sal}}(\mathbf{h}_v)).
-$$
+$$ p_v^{\text{sal}} = \sigma(\operatorname{MLP}_{\text{sal}}(\mathbf{h}_v)). $$
 
 Có head riêng cho:
 
@@ -1655,14 +1410,7 @@ Hai tầng:
 1. bi-encoder retrieval lấy top-$k$;
 2. cross-encoder/graph scorer rerank.
 
-$$
-s(c,e)
-=
-\operatorname{MLP}
-[\mathbf{h}_c;\mathbf{h}_e;
-\mathbf{h}_c\odot\mathbf{h}_e;
-\mathbf{e}_{\text{rel-path}}].
-$$
+$$ s(c,e) = \operatorname{MLP} [\mathbf{h}_c;\mathbf{h}_e; \mathbf{h}_c\odot\mathbf{h}_e; \mathbf{e}_{\text{rel-path}}]. $$
 
 Output có thể là multi-evidence set.
 
@@ -1722,11 +1470,7 @@ Phát hiện:
 
 ### 13.9. Multi-task loss
 
-$$
-\mathcal{L}_{\text{M7}}
-=
-\sum_{k=1}^{K}\lambda_k\mathcal{L}_k.
-$$
+$$ \mathcal{L}_{\text{M7}} = \sum_{k=1}^{K}\lambda_k\mathcal{L}_k. $$
 
 Không nên cố định $\lambda_k=1$ mà không kiểm tra gradient. Ba lựa chọn:
 
@@ -1801,12 +1545,7 @@ Dùng node embeddings từ HGT.
 
 Pointer Transformer hoặc set-to-sequence decoder:
 
-$$
-p(z_t=v\mid z_{<t},G,B)
-=
-\operatorname{softmax}
-(\operatorname{score}(\mathbf{q}_t,\mathbf{h}_v)),
-$$
+$$ p(z_t=v\mid z_{<t},G,B) = \operatorname{softmax} (\operatorname{score}(\mathbf{q}_t,\mathbf{h}_v)), $$
 
 trong đó $B$ là remaining token budget.
 
@@ -1835,15 +1574,7 @@ Sinh gold plan từ expert summary và claim-evidence annotations.
 
 #### Loss
 
-$$
-\mathcal{L}_{\text{plan}}
-=
-\mathcal{L}_{\text{select}}
-+\lambda_o\mathcal{L}_{\text{order}}
-+\lambda_c\mathcal{L}_{\text{coverage}}
-+\lambda_r\mathcal{L}_{\text{redundancy}}
-+\lambda_b\mathcal{L}_{\text{budget}}.
-$$
+$$ \mathcal{L}_{\text{plan}} = \mathcal{L}_{\text{select}} +\lambda_o\mathcal{L}_{\text{order}} +\lambda_c\mathcal{L}_{\text{coverage}} +\lambda_r\mathcal{L}_{\text{redundancy}} +\lambda_b\mathcal{L}_{\text{budget}}. $$
 
 #### Curriculum
 
@@ -1950,12 +1681,7 @@ Targets đến từ:
 
 ### 15.5. Supervised fine-tuning loss
 
-$$
-\mathcal{L}_{\text{gen}}
-=
--\sum_t w_t
-\log p(y_t^\star\mid y_{<t}^\star,Z,G).
-$$
+$$ \mathcal{L}_{\text{gen}} = -\sum_t w_t \log p(y_t^\star\mid y_{<t}^\star,Z,G). $$
 
 Tăng trọng số cho:
 
@@ -1969,12 +1695,7 @@ Tăng trọng số cho:
 
 Nếu decoder cross-attend evidence:
 
-$$
-\mathcal{L}_{\text{ground-gen}}
-=
-\operatorname{CE}
-(a_t,e_t^\star),
-$$
+$$ \mathcal{L}_{\text{ground-gen}} = \operatorname{CE} (a_t,e_t^\star), $$
 
 trong đó $a_t$ là evidence attribution của generated claim.
 
@@ -2009,9 +1730,7 @@ Một textual NLI model có thể thấy chuỗi “31.4” ở đâu đó nhưn
 
 Mỗi generated sentence được tách thành atomic claims:
 
-$$
-Y \rightarrow \{c_1,c_2,\ldots,c_m\}.
-$$
+$$ Y \rightarrow \{c_1,c_2,\ldots,c_m\}. $$
 
 Mỗi claim được phân loại:
 
@@ -2030,13 +1749,7 @@ mixed
 
 Dùng NLI cross-encoder:
 
-$$
-p(label\mid e,c)
-=
-\operatorname{softmax}\!\left(
-\operatorname{CrossEncoder}(e,c)
-\right),
-$$
+$$ p(label\mid e,c) = \operatorname{softmax}\!\left( \operatorname{CrossEncoder}(e,c) \right), $$
 
 labels:
 
@@ -2136,14 +1849,7 @@ Giới hạn số vòng repair, ví dụ tối đa hai vòng, để tránh feedb
 
 ### 16.10. Loss verifier
 
-$$
-\mathcal{L}_{\text{verify}}
-=
-\lambda_{\text{nli}}\mathcal{L}_{\text{NLI}}
-+\lambda_{\text{type}}\mathcal{L}_{\text{claim-type}}
-+\lambda_{\text{attr}}\mathcal{L}_{\text{attribution}}
-+\lambda_{\text{conf}}\mathcal{L}_{\text{confidence}}.
-$$
+$$ \mathcal{L}_{\text{verify}} = \lambda_{\text{nli}}\mathcal{L}_{\text{NLI}} +\lambda_{\text{type}}\mathcal{L}_{\text{claim-type}} +\lambda_{\text{attr}}\mathcal{L}_{\text{attribution}} +\lambda_{\text{conf}}\mathcal{L}_{\text{confidence}}. $$
 
 ---
 
@@ -2153,17 +1859,7 @@ $$
 
 Không dùng một probability duy nhất từ generator.
 
-$$
-C(c)
-=
-f(
-C_{\text{parse}},
-C_{\text{extract}},
-C_{\text{evidence}},
-C_{\text{generate}},
-C_{\text{verify}},
-C_{\text{agreement}}).
-$$
+$$ C(c) = f( C_{\text{parse}}, C_{\text{extract}}, C_{\text{evidence}}, C_{\text{generate}}, C_{\text{verify}}, C_{\text{agreement}}). $$
 
 Ví dụ:
 
@@ -2186,14 +1882,7 @@ Fit trên validation set, không fit trên test.
 
 ### 17.3. Decision policy
 
-$$
-\operatorname{action}(c)=
-\begin{cases}
-\text{accept}, & C(c)\ge \tau_{\text{high}},\\
-\text{repair}, & \tau_{\text{low}}\le C(c)<\tau_{\text{high}},\\
-\text{abstain}, & C(c)<\tau_{\text{low}}.
-\end{cases}
-$$
+$$ \operatorname{action}(c)= \begin{cases} \text{accept}, & C(c)\ge \tau_{\text{high}},\\ \text{repair}, & \tau_{\text{low}}\le C(c)<\tau_{\text{high}},\\ \text{abstain}, & C(c)<\tau_{\text{low}}. \end{cases} $$
 
 Threshold có thể khác theo claim type; numerical claim nên yêu cầu confidence cao hơn prose background.
 
@@ -2348,14 +2037,7 @@ Deliverables:
 
 Loss:
 
-$$
-\mathcal{L}_{\text{phase-1}}
-=
-\mathcal{L}_{\text{MLM}}
-+\mathcal{L}_{\text{eq-align}}
-+\mathcal{L}_{\text{cell-header}}
-+\mathcal{L}_{\text{cross-modal}}.
-$$
+$$ \mathcal{L}_{\text{phase-1}} = \mathcal{L}_{\text{MLM}} +\mathcal{L}_{\text{eq-align}} +\mathcal{L}_{\text{cell-header}} +\mathcal{L}_{\text{cross-modal}}. $$
 
 ### 19.3. Phase 2 — Huấn luyện các extractor độc lập
 
@@ -2390,15 +2072,7 @@ Training mixture:
 
 Loss:
 
-$$
-\mathcal{L}_{\text{graph-pre}}
-=
-\lambda_1\mathcal{L}_{\text{MNM}}
-+\lambda_2\mathcal{L}_{\text{edge}}
-+\lambda_3\mathcal{L}_{\text{claim-evidence}}
-+\lambda_4\mathcal{L}_{\text{eq-context}}
-+\lambda_5\mathcal{L}_{\text{cell-header}}.
-$$
+$$ \mathcal{L}_{\text{graph-pre}} = \lambda_1\mathcal{L}_{\text{MNM}} +\lambda_2\mathcal{L}_{\text{edge}} +\lambda_3\mathcal{L}_{\text{claim-evidence}} +\lambda_4\mathcal{L}_{\text{eq-context}} +\lambda_5\mathcal{L}_{\text{cell-header}}. $$
 
 ### 19.5. Phase 4 — Supervised multi-task HGT
 
@@ -2529,19 +2203,7 @@ Trong giai đoạn đầu, không backprop qua parser và deterministic modules.
 
 Biểu diễn:
 
-$$
-\mathcal{L}_{\text{total}}
-=
-\mathcal{L}_{\text{parse}}
-+\mathcal{L}_{\text{eq}}
-+\mathcal{L}_{\text{table}}
-+\mathcal{L}_{\text{text}}
-+\mathcal{L}_{\text{graph-pre}}
-+\mathcal{L}_{\text{M7}}
-+\mathcal{L}_{\text{plan}}
-+\mathcal{L}_{\text{gen}}
-+\mathcal{L}_{\text{verify}}.
-$$
+$$ \mathcal{L}_{\text{total}} = \mathcal{L}_{\text{parse}} +\mathcal{L}_{\text{eq}} +\mathcal{L}_{\text{table}} +\mathcal{L}_{\text{text}} +\mathcal{L}_{\text{graph-pre}} +\mathcal{L}_{\text{M7}} +\mathcal{L}_{\text{plan}} +\mathcal{L}_{\text{gen}} +\mathcal{L}_{\text{verify}}. $$
 
 Không tính tất cả trong cùng một batch. Đây là ký hiệu tổng quát cho training curriculum.
 
@@ -2573,6 +2235,10 @@ Không tăng weight một task chỉ vì dataset của nó lớn. Sampling rate 
 ---
 
 ## 21. Dữ liệu huấn luyện
+
+Danh mục đầy đủ, ánh xạ dataset–module và toàn bộ pipeline preprocessing được
+trình bày trong
+[SCILENS_DATASETS_AND_PREPROCESSING.md](./SCILENS_DATASETS_AND_PREPROCESSING.md).
 
 ### 21.1. Dữ liệu có sẵn
 
@@ -3127,9 +2793,7 @@ result_full COMPARES_WITH result_wo_fusion
 
 ### Ablation engine
 
-$$
-\Delta=88.4-86.9=1.5.
-$$
+$$ \Delta=88.4-86.9=1.5. $$
 
 ### Content plan
 
